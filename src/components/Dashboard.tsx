@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +9,7 @@ import SecurityScore from './SecurityScore';
 import NetworkFeeModal from './NetworkFeeModal';
 import PendingFundsModal from './PendingFundsModal';
 import CryptoWallet from './CryptoWallet';
+import LongPressButton from './LongPressButton';
 
 interface Wallet {
   currency: string;
@@ -113,14 +113,14 @@ const Dashboard: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10"></div>
           <div className="relative">
             <p className="text-gray-300 text-sm mb-2">Total Balance</p>
-            <button
+            <LongPressButton
               onLongPress={() => setBalanceHidden(!balanceHidden)}
               className="block"
             >
               <h2 className="text-4xl font-bold text-white mb-4 transition-all duration-300">
                 {balanceHidden ? '••••••' : `$${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               </h2>
-            </button>
+            </LongPressButton>
             <div className="flex space-x-3">
               <Button
                 onClick={handleTransfer}
