@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,11 +6,29 @@ import TransactionHistory from './TransactionHistory';
 import TransferFlow from './TransferFlow';
 import SettingsPage from './SettingsPage';
 
+interface Wallet {
+  currency: string;
+  balance: number;
+  symbol: string;
+  type: 'fiat' | 'crypto';
+}
+
+interface Transaction {
+  id: number;
+  type: 'send' | 'receive' | 'convert';
+  amount: number;
+  currency: string;
+  from?: string;
+  to?: string;
+  time: string;
+  status: 'pending' | 'completed' | 'failed';
+}
+
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [showTransfer, setShowTransfer] = useState(false);
 
-  const wallets = [
+  const wallets: Wallet[] = [
     { currency: 'USD', balance: 12345.67, symbol: '$', type: 'fiat' },
     { currency: 'EUR', balance: 8234.12, symbol: '€', type: 'fiat' },
     { currency: 'GBP', balance: 5678.90, symbol: '£', type: 'fiat' },
@@ -19,7 +36,7 @@ const Dashboard: React.FC = () => {
     { currency: 'ETH', balance: 3.45, symbol: 'Ξ', type: 'crypto' },
   ];
 
-  const recentTransactions = [
+  const recentTransactions: Transaction[] = [
     { id: 1, type: 'receive', amount: 500, currency: 'USD', from: 'John Doe', time: '2 min ago', status: 'completed' },
     { id: 2, type: 'send', amount: 1200, currency: 'EUR', to: 'PayPal', time: '1 hour ago', status: 'pending' },
     { id: 3, type: 'convert', amount: 0.1, currency: 'BTC', to: 'USD', time: '3 hours ago', status: 'completed' },
