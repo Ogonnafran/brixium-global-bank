@@ -1,73 +1,72 @@
-# Welcome to your Lovable project
+# 🌐 Futuristic Global Banking App
 
-## Project info
+*A next-generation mobile-first global digital banking platform* that supports real-time fiat and crypto transactions, powered by AI automation, robust security, and an intuitive admin panel for full control.
 
-**URL**: https://lovable.dev/projects/0371fbd1-7220-4f52-aaa1-d3e4f4b5ea42
+---
 
-## How can I edit this code?
+## 📱 App Overview
 
-There are several ways of editing your application.
+The Futuristic Global Banking App is a fully functional financial platform designed for global users. It offers:
 
-**Use Lovable**
+- Real fiat and cryptocurrency transactions
+- Network fee enforcement like Trust Wallet
+- Pending payment & claim system
+- Multi-token wallet interface (BTC, ETH, USDT, etc.)
+- Full KYC, biometric, and 2FA security
+- Real-time admin control and transaction approvals
+- Mobile-first responsive design
+- Licensed bank-grade architecture
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/0371fbd1-7220-4f52-aaa1-d3e4f4b5ea42) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🚀 Features
 
-**Use your preferred IDE**
+### 🔐 User App
+- Create account with biometric & password auth
+- Real-time account balance (no mock data)
+- Send/receive funds across banks (e.g., Chase)
+- Send/receive crypto with QR and gas fee estimation
+- View pending funds with expiry timers
+- Pay network fee before withdrawals or transfers
+- Secure login, logout, and app lock
+- Show/hide password toggle with eye icon
+- Full transaction history with status badges
+- Multi-language and dark/light mode support
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 🛡 Security
+- Biometric authentication (Fingerprint/Face)
+- Security score meter
+- Two-Factor Authentication
+- Session logs with timestamp and location
+- App auto-lock after inactivity
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 🧠 AI-Powered Admin Panel
+- Approve or deny user transfers and withdrawals
+- Monitor and control all user accounts in real time
+- View security logs and KYC data
+- Push notifications or alerts to users
+- Modify user wallets manually
+- Responsive mobile-first admin dashboard
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🏛 Regulatory & Legal
+- Licensed digital bank badge (customizable for region)
+- Links to Terms of Service and Privacy Policy
+- Placeholder for FDIC/CBN or financial regulator disclosures
+- Disclaimer: This project is a prototype and should be legally reviewed before launching in real-world environments.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
+## 🛠 Tech Stack
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+- *Frontend:* React Native / Flutter (Mobile-first)
+- *Backend:* Node.js / Express / Firebase / Supabase
+- *Database:* PostgreSQL / Firebase Firestore
+- *Crypto:* WalletConnect, Web3, Ethers.js
+- *Admin Panel:* React.js + Tailwind / FlutterFlow
+- *AI Automation:* OpenAI / Lovable AI for logic automation
+- *Security:* JWT, OAuth2, biometric auth, 2FA
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/0371fbd1-7220-4f52-aaa1-d3e4f4b5ea42) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
