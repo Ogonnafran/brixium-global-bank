@@ -99,6 +99,16 @@ const Dashboard: React.FC = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-4 gap-4 mb-6">
+          <button 
+            onClick={() => window.location.href = '/admin'}
+            className="flex flex-col items-center space-y-2 p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors"
+          >
+            <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">👑</span>
+            </div>
+            <span className="text-xs text-gray-300">Admin Panel</span>
+          </button>
+          
           <button className="flex flex-col items-center space-y-2 p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
             <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
               <span className="text-2xl">💰</span>
@@ -118,13 +128,6 @@ const Dashboard: React.FC = () => {
               <span className="text-2xl">📊</span>
             </div>
             <span className="text-xs text-gray-300">Analytics</span>
-          </button>
-          
-          <button className="flex flex-col items-center space-y-2 p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
-            <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center">
-              <span className="text-2xl">💳</span>
-            </div>
-            <span className="text-xs text-gray-300">Cards</span>
           </button>
         </div>
       </div>
