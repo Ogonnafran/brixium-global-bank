@@ -6,6 +6,16 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+interface PlatformSettings {
+  id: number;
+  network_fee: number;
+  crypto_addresses: {
+    BTC: string;
+    ETH: string;
+    USDT: string;
+  };
+}
+
 const NetworkFeeManager: React.FC = () => {
   const [networkFee, setNetworkFee] = useState(25);
   const [cryptoAddresses, setCryptoAddresses] = useState({
@@ -22,15 +32,36 @@ const NetworkFeeManager: React.FC = () => {
 
   const fetchSettings = async () => {
     try {
-      // Fetch current network fee and crypto addresses from database
-      const { data: settings } = await supabase
-        .from('platform_settings')
-        .select('*')
-        .single();
+      // Use a raw SQL query to fetch platform settings
+      const { data, error } = await supabase.rpc('get_platform_settings') as {
+        data: PlatformSettings | null;
+        error: any;
+      };
 
-      if (settings) {
-        setNetworkFee(settings.network_fee || 25);
-        setCryptoAddresses(settings.crypto_addresses || {
+      // If the RPC function doesn't exist, fall back to direct table access
+      if (error && error.code === '42883') {
+        // Fallback: try direct access (this might not work due to RLS, but worth trying)
+        const { data: directData, error: directError } = await supabase
+          .from('platform_settings' as any)
+          .select('*')
+          .single();
+
+        if (directError) {
+          console.error('Error fetching settings:', directError);
+          return;
+        }
+
+        if (directData) {
+          setNetworkFee(directData.network_fee || 25);
+          setCryptoAddresses(directData.crypto_addresses || {
+            BTC: '',
+            ETH: '',
+            USDT: ''
+          });
+        }
+      } else if (!error && data) {
+        setNetworkFee(data.network_fee || 25);
+        setCryptoAddresses(data.crypto_addresses || {
           BTC: '',
           ETH: '',
           USDT: ''
@@ -44,15 +75,25 @@ const NetworkFeeManager: React.FC = () => {
   const updateNetworkFee = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('platform_settings')
-        .upsert({
-          id: 1,
-          network_fee: networkFee,
-          updated_at: new Date().toISOString()
-        });
+      // Use raw SQL to update platform settings
+      const { error } = await supabase.rpc('update_network_fee', {
+        new_fee: networkFee
+      });
 
-      if (error) throw error;
+      // If RPC doesn't exist, try direct update
+      if (error && error.code === '42883') {
+        const { error: directError } = await supabase
+          .from('platform_settings' as any)
+          .upsert({
+            id: 1,
+            network_fee: networkFee,
+            updated_at: new Date().toISOString()
+          });
+
+        if (directError) throw directError;
+      } else if (error) {
+        throw error;
+      }
 
       toast({
         title: "Network Fee Updated",
@@ -72,15 +113,25 @@ const NetworkFeeManager: React.FC = () => {
   const updateCryptoAddresses = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('platform_settings')
-        .upsert({
-          id: 1,
-          crypto_addresses: cryptoAddresses,
-          updated_at: new Date().toISOString()
-        });
+      // Use raw SQL to update crypto addresses
+      const { error } = await supabase.rpc('update_crypto_addresses', {
+        addresses: cryptoAddresses
+      });
 
-      if (error) throw error;
+      // If RPC doesn't exist, try direct update
+      if (error && error.code === '42883') {
+        const { error: directError } = await supabase
+          .from('platform_settings' as any)
+          .upsert({
+            id: 1,
+            crypto_addresses: cryptoAddresses,
+            updated_at: new Date().toISOString()
+          });
+
+        if (directError) throw directError;
+      } else if (error) {
+        throw error;
+      }
 
       toast({
         title: "Crypto Addresses Updated",

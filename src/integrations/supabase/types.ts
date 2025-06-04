@@ -111,6 +111,30 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_settings: {
+        Row: {
+          created_at: string | null
+          crypto_addresses: Json | null
+          id: number
+          network_fee: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          crypto_addresses?: Json | null
+          id?: number
+          network_fee?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          crypto_addresses?: Json | null
+          id?: number
+          network_fee?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           admin_notes: string | null
@@ -152,6 +176,44 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      transaction_notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          notification_type: string
+          read: boolean | null
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          notification_type: string
+          read?: boolean | null
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          notification_type?: string
+          read?: boolean | null
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_notifications_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {
