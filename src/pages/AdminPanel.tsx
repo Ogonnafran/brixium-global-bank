@@ -1,9 +1,10 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Menu, X, Shield, Bell, Activity } from 'lucide-react';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
+import AdminRoute from '../components/admin/AdminRoute';
 import AdminOverview from '../components/admin/AdminOverview';
 import KYCManagement from '../components/admin/KYCManagement';
 import TransactionApprovals from '../components/admin/TransactionApprovals';
@@ -11,14 +12,17 @@ import WalletMonitoring from '../components/admin/WalletMonitoring';
 import UserManagement from '../components/admin/UserManagement';
 import PlatformSettings from '../components/admin/PlatformSettings';
 import IntegrationsPanel from '../components/admin/IntegrationsPanel';
+import NetworkFeeManager from '../components/admin/NetworkFeeManager';
 
-const AdminPanel: React.FC = () => {
+const AdminPanelContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState(3);
+  const { adminSignOut, adminUser } = useAdminAuth();
 
   const adminTabs = [
     { id: 'overview', label: 'Dashboard', icon: '📊', color: 'bg-blue-500' },
+    { id: 'fees', label: 'Network Fees', icon: '💰', color: 'bg-green-500' },
     { id: 'kyc', label: 'KYC Management', icon: '📋', color: 'bg-green-500' },
     { id: 'transactions', label: 'Transaction Approvals', icon: '💸', color: 'bg-purple-500' },
     { id: 'wallets', label: 'Wallet Monitoring', icon: '👁️', color: 'bg-orange-500' },
@@ -33,6 +37,8 @@ const AdminPanel: React.FC = () => {
     switch (activeTab) {
       case 'overview':
         return <AdminOverview />;
+      case 'fees':
+        return <NetworkFeeManager />;
       case 'kyc':
         return <KYCManagement />;
       case 'transactions':
@@ -80,10 +86,14 @@ const AdminPanel: React.FC = () => {
                 )}
               </Button>
             </div>
-            <div className="flex items-center space-x-2 px-2 py-1 bg-green-50 rounded-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-green-700 text-xs font-medium">Online</span>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={adminSignOut}
+              className="text-red-600 hover:bg-red-50"
+            >
+              Logout
+            </Button>
           </div>
         </div>
       </div>
@@ -93,12 +103,12 @@ const AdminPanel: React.FC = () => {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-purple-600 rounded-xl flex items-center justify-center">
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">Brixium Admin Panel</h1>
-                <p className="text-slate-600">Global Banking Platform Administration</p>
+                <p className="text-slate-600">Secure Banking Platform Administration</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -116,14 +126,24 @@ const AdminPanel: React.FC = () => {
                 <span className="text-green-700 text-sm font-medium">System Online</span>
               </div>
               <div className="flex items-center space-x-2 px-3 py-2 bg-blue-50 rounded-lg">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-semibold text-sm">A</span>
+                <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-semibold text-sm">
+                    {adminUser?.email?.[0]?.toUpperCase() || 'A'}
+                  </span>
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-medium text-slate-900">Admin User</p>
-                  <p className="text-xs text-slate-600">Super Administrator</p>
+                  <p className="text-xs text-slate-600">{adminUser?.email}</p>
                 </div>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={adminSignOut}
+                className="text-red-600 border-red-200 hover:bg-red-50"
+              >
+                Logout
+              </Button>
             </div>
           </div>
         </div>
@@ -245,6 +265,14 @@ const AdminPanel: React.FC = () => {
       {/* Add bottom padding for mobile bottom nav */}
       <div className="lg:hidden h-20"></div>
     </div>
+  );
+};
+
+const AdminPanel: React.FC = () => {
+  return (
+    <AdminRoute>
+      <AdminPanelContent />
+    </AdminRoute>
   );
 };
 
