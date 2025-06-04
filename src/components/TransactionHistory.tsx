@@ -2,35 +2,83 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useUserData } from '@/hooks/useUserData';
+import { format } from 'date-fns';
 
-interface Transaction {
-  id: string;
-  userId: string;
-  user: string;
-  type: 'withdrawal' | 'transfer' | 'crypto_withdrawal' | 'send' | 'receive' | 'convert';
-  amount: number;
-  currency: string;
-  destination?: string;
-  from?: string;
-  to?: string;
-  networkFee: number;
-  submittedAt: string;
-  time: string;
-  status: 'pending' | 'completed' | 'failed';
-  riskScore: number;
-}
-
-interface TransactionHistoryProps {
-  transactions: Transaction[];
-}
-
-const TransactionHistory: React.FC<TransactionHistoryProps> = ({ transactions }) => {
+const TransactionHistory: React.FC = () => {
   const [filter, setFilter] = useState('all');
+  const { transactions, isLoading } = useUserData();
 
   const filteredTransactions = transactions.filter(transaction => {
     if (filter === 'all') return true;
     return transaction.status === filter;
   });
+
+  const formatTransactionType = (type: string) => {
+    switch (type) {
+      case 'receive':
+        return 'Received';
+      case 'send':
+        return 'Sent';
+      case 'withdrawal':
+        return 'Withdrawal';
+      case 'transfer':
+        return 'Transfer';
+      case 'crypto_withdrawal':
+        return 'Crypto Withdrawal';
+      case 'convert':
+        return 'Converted';
+      default:
+        return type;
+    }
+  };
+
+  const getTransactionIcon = (type: string) => {
+    switch (type) {
+      case 'receive':
+        return '↓';
+      case 'send':
+        return '↑';
+      case 'withdrawal':
+      case 'crypto_withdrawal':
+        return '↗';
+      case 'transfer':
+        return '⇄';
+      case 'convert':
+        return '🔄';
+      default:
+        return '💱';
+    }
+  };
+
+  const getTransactionColor = (type: string) => {
+    switch (type) {
+      case 'receive':
+        return 'bg-green-500/20';
+      case 'send':
+      case 'withdrawal':
+      case 'crypto_withdrawal':
+        return 'bg-red-500/20';
+      default:
+        return 'bg-blue-500/20';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white">Transaction History</h2>
+        </div>
+        <div className="text-center py-12">
+          <div className="w-16 h-16 mx-auto bg-gray-500/20 rounded-2xl flex items-center justify-center mb-4">
+            <span className="text-2xl animate-spin">⏳</span>
+          </div>
+          <p className="text-gray-400">Loading transactions...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -63,24 +111,19 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ transactions })
           <div key={transaction.id} className="card-glow rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  transaction.type === 'receive' ? 'bg-green-500/20' :
-                  transaction.type === 'send' ? 'bg-red-500/20' : 'bg-blue-500/20'
-                }`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getTransactionColor(transaction.type)}`}>
                   <span className="text-xl">
-                    {transaction.type === 'receive' ? '↓' : 
-                     transaction.type === 'send' ? '↑' : '🔄'}
+                    {getTransactionIcon(transaction.type)}
                   </span>
                 </div>
                 <div>
                   <p className="text-white font-semibold">
-                    {transaction.type === 'receive' ? 'Received' :
-                     transaction.type === 'send' ? 'Sent' : 'Converted'}
+                    {formatTransactionType(transaction.type)}
                   </p>
                   <p className="text-gray-400 text-sm">
-                    {transaction.type === 'receive' ? `From ${transaction.from}` :
-                     transaction.type === 'send' ? `To ${transaction.to}` :
-                     `To ${transaction.to}`}
+                    {transaction.to_address ? `To ${transaction.to_address}` :
+                     transaction.from_address ? `From ${transaction.from_address}` :
+                     transaction.destination ? `To ${transaction.destination}` : 'Internal'}
                   </p>
                 </div>
               </div>
@@ -106,12 +149,16 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ transactions })
                   {transaction.type === 'receive' ? '+' : '-'}
                   {transaction.amount} {transaction.currency}
                 </p>
-                <p className="text-gray-400 text-sm">{transaction.time}</p>
+                <p className="text-gray-400 text-sm">
+                  {format(new Date(transaction.created_at), 'MMM dd, yyyy HH:mm')}
+                </p>
               </div>
               
               {transaction.status === 'pending' && (
                 <div className="text-right">
-                  <p className="text-yellow-400 text-sm font-medium">Network Fee: ${transaction.networkFee}</p>
+                  <p className="text-yellow-400 text-sm font-medium">
+                    Network Fee: {transaction.network_fee} {transaction.currency}
+                  </p>
                   <p className="text-gray-400 text-xs">Awaiting admin approval</p>
                 </div>
               )}

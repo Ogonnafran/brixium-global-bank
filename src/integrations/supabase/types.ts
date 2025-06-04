@@ -9,16 +9,286 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      kyc_submissions: {
+        Row: {
+          created_at: string | null
+          documents: Json | null
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_level: string | null
+          status: Database["public"]["Enums"]["kyc_status"] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          documents?: Json | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_level?: string | null
+          status?: Database["public"]["Enums"]["kyc_status"] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          documents?: Json | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_level?: string | null
+          status?: Database["public"]["Enums"]["kyc_status"] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pending_funds: {
+        Row: {
+          amount: number
+          claimed: boolean | null
+          claimed_at: string | null
+          created_at: string | null
+          currency: string
+          expires_at: string
+          id: string
+          network_fee: number
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          claimed?: boolean | null
+          claimed_at?: string | null
+          created_at?: string | null
+          currency: string
+          expires_at: string
+          id?: string
+          network_fee: number
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          claimed?: boolean | null
+          claimed_at?: string | null
+          created_at?: string | null
+          currency?: string
+          expires_at?: string
+          id?: string
+          network_fee?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          admin_notes: string | null
+          created_at: string | null
+          flagged: boolean | null
+          id: string
+          kyc_status: Database["public"]["Enums"]["kyc_status"] | null
+          last_activity: string | null
+          name: string
+          phone: string | null
+          risk_level: string | null
+          status: Database["public"]["Enums"]["user_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string | null
+          flagged?: boolean | null
+          id: string
+          kyc_status?: Database["public"]["Enums"]["kyc_status"] | null
+          last_activity?: string | null
+          name: string
+          phone?: string | null
+          risk_level?: string | null
+          status?: Database["public"]["Enums"]["user_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string | null
+          flagged?: boolean | null
+          id?: string
+          kyc_status?: Database["public"]["Enums"]["kyc_status"] | null
+          last_activity?: string | null
+          name?: string
+          phone?: string | null
+          risk_level?: string | null
+          status?: Database["public"]["Enums"]["user_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string | null
+          currency: string
+          destination: string | null
+          from_address: string | null
+          id: string
+          network_fee: number | null
+          risk_score: number | null
+          status: Database["public"]["Enums"]["transaction_status"] | null
+          to_address: string | null
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          currency: string
+          destination?: string | null
+          from_address?: string | null
+          id?: string
+          network_fee?: number | null
+          risk_score?: number | null
+          status?: Database["public"]["Enums"]["transaction_status"] | null
+          to_address?: string | null
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          currency?: string
+          destination?: string | null
+          from_address?: string | null
+          id?: string
+          network_fee?: number | null
+          risk_score?: number | null
+          status?: Database["public"]["Enums"]["transaction_status"] | null
+          to_address?: string | null
+          type?: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallets: {
+        Row: {
+          balance: number | null
+          created_at: string | null
+          currency: string
+          id: string
+          status: Database["public"]["Enums"]["wallet_status"] | null
+          symbol: string
+          type: Database["public"]["Enums"]["wallet_type"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          balance?: number | null
+          created_at?: string | null
+          currency: string
+          id?: string
+          status?: Database["public"]["Enums"]["wallet_status"] | null
+          symbol: string
+          type: Database["public"]["Enums"]["wallet_type"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          balance?: number | null
+          created_at?: string | null
+          currency?: string
+          id?: string
+          status?: Database["public"]["Enums"]["wallet_status"] | null
+          symbol?: string
+          type?: Database["public"]["Enums"]["wallet_type"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
+      kyc_status: "pending" | "approved" | "rejected"
+      transaction_status: "pending" | "completed" | "failed"
+      transaction_type:
+        | "withdrawal"
+        | "transfer"
+        | "crypto_withdrawal"
+        | "send"
+        | "receive"
+        | "convert"
+      user_status: "active" | "locked" | "suspended"
+      wallet_status: "active" | "frozen" | "suspended"
+      wallet_type: "fiat" | "crypto"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +403,21 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+      kyc_status: ["pending", "approved", "rejected"],
+      transaction_status: ["pending", "completed", "failed"],
+      transaction_type: [
+        "withdrawal",
+        "transfer",
+        "crypto_withdrawal",
+        "send",
+        "receive",
+        "convert",
+      ],
+      user_status: ["active", "locked", "suspended"],
+      wallet_status: ["active", "frozen", "suspended"],
+      wallet_type: ["fiat", "crypto"],
+    },
   },
 } as const
