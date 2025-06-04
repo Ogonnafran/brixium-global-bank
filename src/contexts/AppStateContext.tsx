@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface User {
@@ -15,6 +14,7 @@ interface User {
     currency: string;
     balance: number;
     symbol: string;
+    type: 'fiat' | 'crypto';
     status: 'active' | 'frozen' | 'suspended';
   }[];
   lastActivity: string;
@@ -97,11 +97,11 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({ children }) 
         flagged: false,
         adminNotes: 'Primary user account.',
         wallets: [
-          { currency: 'USD', balance: 150, symbol: '$', status: 'active' },
-          { currency: 'EUR', balance: 0, symbol: '€', status: 'active' },
-          { currency: 'GBP', balance: 0, symbol: '£', status: 'active' },
-          { currency: 'BTC', balance: 0, symbol: '₿', status: 'active' },
-          { currency: 'ETH', balance: 0, symbol: 'Ξ', status: 'active' },
+          { currency: 'USD', balance: 150, symbol: '$', type: 'fiat', status: 'active' },
+          { currency: 'EUR', balance: 0, symbol: '€', type: 'fiat', status: 'active' },
+          { currency: 'GBP', balance: 0, symbol: '£', type: 'fiat', status: 'active' },
+          { currency: 'BTC', balance: 0, symbol: '₿', type: 'crypto', status: 'active' },
+          { currency: 'ETH', balance: 0, symbol: 'Ξ', type: 'crypto', status: 'active' },
         ],
         lastActivity: '2024-06-03 11:30',
         riskLevel: 'low'

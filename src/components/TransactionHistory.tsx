@@ -4,14 +4,20 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 interface Transaction {
-  id: number;
-  type: 'send' | 'receive' | 'convert';
+  id: string;
+  userId: string;
+  user: string;
+  type: 'withdrawal' | 'transfer' | 'crypto_withdrawal' | 'send' | 'receive' | 'convert';
   amount: number;
   currency: string;
+  destination?: string;
   from?: string;
   to?: string;
+  networkFee: number;
+  submittedAt: string;
   time: string;
   status: 'pending' | 'completed' | 'failed';
+  riskScore: number;
 }
 
 interface TransactionHistoryProps {
@@ -105,7 +111,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ transactions })
               
               {transaction.status === 'pending' && (
                 <div className="text-right">
-                  <p className="text-yellow-400 text-sm font-medium">Network Fee: $2.50</p>
+                  <p className="text-yellow-400 text-sm font-medium">Network Fee: ${transaction.networkFee}</p>
                   <p className="text-gray-400 text-xs">Awaiting admin approval</p>
                 </div>
               )}
