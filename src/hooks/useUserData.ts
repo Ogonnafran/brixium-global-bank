@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,7 +20,7 @@ interface Wallet {
   currency: string;
   balance: number;
   symbol: string;
-  type: string;
+  type: 'fiat' | 'crypto';
   status: string;
 }
 
@@ -62,7 +61,18 @@ export const useUserData = () => {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setWallets(data || []);
+      
+      // Transform the data to match our Wallet interface
+      const transformedWallets: Wallet[] = (data || []).map(wallet => ({
+        id: wallet.id,
+        currency: wallet.currency,
+        balance: wallet.balance || 0,
+        symbol: wallet.symbol,
+        type: wallet.type as 'fiat' | 'crypto',
+        status: wallet.status || 'active'
+      }));
+      
+      setWallets(transformedWallets);
     } catch (err: any) {
       console.error('Error fetching wallets:', err);
       setError(err.message);
