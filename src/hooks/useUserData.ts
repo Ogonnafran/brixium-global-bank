@@ -2,6 +2,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Database } from '@/integrations/supabase/types';
+
+type TransactionInsert = Database['public']['Tables']['transactions']['Insert'];
+type TransactionRow = Database['public']['Tables']['transactions']['Row'];
 
 interface UserProfile {
   id: string;
@@ -21,25 +25,11 @@ interface Wallet {
   status: string;
 }
 
-interface Transaction {
-  id: string;
-  type: string;
-  amount: number;
-  currency: string;
-  destination?: string;
-  from_address?: string;
-  to_address?: string;
-  network_fee: number;
-  status: string;
-  risk_score: number;
-  created_at: string;
-}
-
 export const useUserData = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,16 +88,21 @@ export const useUserData = () => {
     }
   };
 
-  const createTransaction = async (transactionData: Partial<Transaction>) => {
+  const createTransaction = async (transactionData: Omit<TransactionInsert, 'user_id'>) => {
     if (!user) return { error: 'User not authenticated' };
 
     try {
+      const insertData: TransactionInsert = {
+        user_id: user.id,
+        amount: transactionData.amount,
+        currency: transactionData.currency,
+        type: transactionData.type,
+        ...transactionData
+      };
+
       const { data, error } = await supabase
         .from('transactions')
-        .insert({
-          user_id: user.id,
-          ...transactionData
-        })
+        .insert(insertData)
         .select()
         .single();
 

@@ -11,8 +11,10 @@ import NetworkFeeModal from './NetworkFeeModal';
 import PendingFundsModal from './PendingFundsModal';
 import CryptoWallet from './CryptoWallet';
 import LongPressButton from './LongPressButton';
-import { useAppState } from '../contexts/AppStateContext';
-import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserData } from '@/hooks/useUserData';
+import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('home');
@@ -21,40 +23,26 @@ const Dashboard: React.FC = () => {
   const [showPendingFunds, setShowPendingFunds] = useState(false);
   const [showCrypto, setShowCrypto] = useState(false);
   const [balanceHidden, setBalanceHidden] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState(Date.now());
   
-  const { state, setCurrentUser } = useAppState();
-  const { addToast } = useToast();
+  const { user } = useAuth();
+  const { profile, wallets, transactions, isLoading } = useUserData();
+  const { toast } = useToast();
   
-  // Set current user on mount
-  useEffect(() => {
-    if (state.users.length > 0 && !state.currentUser) {
-      setCurrentUser(state.users[0]); // Francis
-    }
-  }, [state.users, state.currentUser, setCurrentUser]);
-
-  const currentUser = state.currentUser || state.users[0];
-  const userName = currentUser?.name || 'User';
+  const userName = profile?.name || user?.email?.split('@')[0] || 'User';
   
-  // Get current user's wallets and transactions
-  const userWallets = currentUser?.wallets || [];
-  const userTransactions = state.transactions.filter(tx => tx.userId === currentUser?.id) || [];
-
-  const totalUSD = userWallets.reduce((sum, wallet) => {
+  const totalUSD = wallets.reduce((sum, wallet) => {
     const rates: { [key: string]: number } = { USD: 1, EUR: 1.1, GBP: 1.25, BTC: 45000, ETH: 2500 };
-    return sum + (wallet.balance * (rates[wallet.currency] || 1));
+    return sum + ((wallet.balance || 0) * (rates[wallet.currency] || 1));
   }, 0);
 
   const handleRefresh = () => {
-    setLastRefresh(Date.now());
     // Trigger haptic feedback
     if (navigator.vibrate) {
       navigator.vibrate(50);
     }
-    addToast({
-      type: 'info',
+    toast({
       title: 'Refreshed',
-      message: 'Account data has been updated.'
+      description: 'Account data has been updated.'
     });
   };
 
@@ -66,7 +54,15 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const hasPendingFunds = totalUSD === 0 && userWallets.some(w => w.currency === 'USD');
+  const hasPendingFunds = totalUSD === 0 && wallets.some(w => w.currency === 'USD');
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   if (showTransfer) {
     return <TransferFlow onBack={() => setShowTransfer(false)} />;
@@ -202,10 +198,10 @@ const Dashboard: React.FC = () => {
             {/* Wallets */}
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-white mb-4">Your Wallets</h3>
-              {userWallets.some(w => w.balance > 0) ? (
+              {wallets.some(w => (w.balance || 0) > 0) ? (
                 <div className="space-y-3">
-                  {userWallets.map((wallet) => (
-                    <WalletCard key={wallet.currency} wallet={wallet} />
+                  {wallets.map((wallet) => (
+                    <WalletCard key={wallet.id} wallet={wallet} />
                   ))}
                 </div>
               ) : (
@@ -233,9 +229,9 @@ const Dashboard: React.FC = () => {
                 </Button>
               </div>
               
-              {userTransactions.length > 0 ? (
+              {transactions.length > 0 ? (
                 <div className="space-y-3">
-                  {userTransactions.slice(0, 3).map((transaction) => (
+                  {transactions.slice(0, 3).map((transaction) => (
                     <div key={transaction.id} className="card-glow rounded-2xl p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
@@ -250,7 +246,9 @@ const Dashboard: React.FC = () => {
                           </div>
                           <div>
                             <p className="text-white font-semibold capitalize">{transaction.type}</p>
-                            <p className="text-gray-400 text-sm">{transaction.time}</p>
+                            <p className="text-gray-400 text-sm">
+                              {format(new Date(transaction.created_at || ''), 'MMM dd, HH:mm')}
+                            </p>
                           </div>
                         </div>
                         <div className="text-right">
@@ -282,7 +280,7 @@ const Dashboard: React.FC = () => {
         )}
 
         {activeTab === 'transactions' && (
-          <TransactionHistory transactions={userTransactions} />
+          <TransactionHistory />
         )}
 
         {activeTab === 'settings' && (
