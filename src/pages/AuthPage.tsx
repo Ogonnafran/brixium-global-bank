@@ -82,7 +82,8 @@ const AuthPage: React.FC = () => {
       if (!error) {
         // Reset form on successful signup
         setSignUpData({ email: '', password: '', name: '', confirmPassword: '' });
-        console.log('Sign up successful, user will be redirected after email confirmation');
+        console.log('Sign up successful');
+        // If user is automatically signed in, they'll be redirected by the auth context
       }
     } catch (error) {
       console.error('Sign up error:', error);
@@ -104,7 +105,7 @@ const AuthPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Global Bank</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">Brixium Global Bank</h1>
           <p className="text-gray-400">Secure Digital Banking Platform</p>
         </div>
 
@@ -228,6 +229,9 @@ const AuthPage: React.FC = () => {
         <div className="mt-6 text-center">
           <p className="text-gray-400 text-sm">
             🔐 Secure authentication powered by Supabase
+          </p>
+          <p className="text-gray-500 text-xs mt-2">
+            No email verification required - instant access!
           </p>
         </div>
       </div>

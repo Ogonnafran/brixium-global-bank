@@ -53,6 +53,7 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           
           setAdminUser(mockAdminUser);
           setIsAuthorizedAdmin(true);
+          console.log('Admin session restored from localStorage');
         }
       } catch (error) {
         console.error('Admin auth check error:', error);
@@ -89,7 +90,7 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           role: 'authenticated'
         };
 
-        // Store admin auth in localStorage
+        // Store admin auth in localStorage for persistence
         localStorage.setItem('admin_authenticated', 'true');
         localStorage.setItem('admin_email', ADMIN_EMAIL);
         
@@ -101,8 +102,12 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           description: "Welcome to the Brixium admin panel.",
         });
 
+        console.log('Admin successfully authenticated');
+        
         // Redirect to admin dashboard
-        window.location.href = '/admin/dashboard';
+        setTimeout(() => {
+          window.location.href = '/admin/dashboard';
+        }, 1000);
         
         return { error: null };
       } else {
@@ -139,7 +144,12 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         description: "You have been signed out of the admin panel.",
       });
       
-      window.location.href = '/admin';
+      console.log('Admin signed out successfully');
+      
+      // Redirect to admin login
+      setTimeout(() => {
+        window.location.href = '/admin';
+      }, 1000);
     } catch (error) {
       console.error('Error signing out:', error);
       toast({

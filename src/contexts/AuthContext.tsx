@@ -34,6 +34,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('User successfully signed in, redirecting to dashboard');
           
+          // Store session info in localStorage for persistence
+          localStorage.setItem('user_authenticated', 'true');
+          localStorage.setItem('user_email', session.user.email || '');
+          
           // Redirect to dashboard after successful login
           setTimeout(() => {
             window.location.href = '/dashboard';
@@ -43,6 +47,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(() => {
             logActivity('login', { timestamp: new Date().toISOString() });
           }, 100);
+        }
+        
+        if (event === 'SIGNED_OUT') {
+          console.log('User signed out, clearing localStorage');
+          localStorage.removeItem('user_authenticated');
+          localStorage.removeItem('user_email');
         }
         
         if (event === 'TOKEN_REFRESHED') {
@@ -56,11 +66,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+        } else {
+          console.log('Initial session check:', session?.user?.email || 'No session');
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            localStorage.setItem('user_authenticated', 'true');
+            localStorage.setItem('user_email', session.user.email || '');
+          }
+        }
+      } catch (error) {
+        console.error('Session initialization error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
 
     return () => subscription.unsubscribe();
   }, []);
@@ -83,14 +111,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       
-      // Clean up any existing auth state first
-      localStorage.removeItem('supabase.auth.token');
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-          localStorage.removeItem(key);
-        }
-      });
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
@@ -104,8 +124,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error.message === 'Invalid login credentials') {
           errorMessage = 'Invalid email or password. Please check your credentials and try again.';
-        } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = 'Please check your email and click the confirmation link before signing in.';
         } else if (error.message.includes('too many requests')) {
           errorMessage = 'Too many login attempts. Please wait a moment and try again.';
         }
@@ -145,22 +163,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       
-      // Clean up any existing auth state
-      localStorage.removeItem('supabase.auth.token');
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-          localStorage.removeItem(key);
-        }
-      });
-      
-      // Disable email confirmation for faster login
+      // Since we can't disable email confirmation via SQL, we'll handle it in the app
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
         options: {
           data: {
             name: name.trim()
-          }
+          },
+          // Try to set emailRedirectTo to current domain to handle confirmations
+          emailRedirectTo: `${window.location.origin}/auth`
         }
       });
       
@@ -189,15 +201,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('Sign up successful:', data.user.email);
         
         if (data.session) {
-          // User is automatically signed in
+          // User is automatically signed in (email confirmation disabled)
           toast({
             title: "Account Created!",
-            description: "Welcome to Brixium Global Bank!",
+            description: "Welcome to Brixium Global Bank! You're now signed in.",
           });
         } else {
+          // Email confirmation is required
           toast({
             title: "Account Created!",
-            description: "You can now sign in with your credentials.",
+            description: "Please check your email to confirm your account, then sign in.",
           });
         }
         
@@ -224,13 +237,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await logActivity('logout', { timestamp: new Date().toISOString() });
       }
       
-      // Clean up auth state
-      localStorage.removeItem('supabase.auth.token');
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-          localStorage.removeItem(key);
-        }
-      });
+      // Clear localStorage
+      localStorage.removeItem('user_authenticated');
+      localStorage.removeItem('user_email');
       
       await supabase.auth.signOut({ scope: 'global' });
       
