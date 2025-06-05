@@ -33,6 +33,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Handle different auth events
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('User successfully signed in, redirecting to dashboard');
+          
+          // Redirect to dashboard after successful login
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 1000);
+          
           // Log activity after state is set
           setTimeout(() => {
             logActivity('login', { timestamp: new Date().toISOString() });
@@ -147,13 +153,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
       
-      const redirectUrl = `${window.location.origin}/dashboard`;
-      
+      // Disable email confirmation for faster login
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
         options: {
-          emailRedirectTo: redirectUrl,
           data: {
             name: name.trim()
           }
@@ -184,17 +188,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.user) {
         console.log('Sign up successful:', data.user.email);
         
-        // Check if email confirmation is required
-        if (!data.session && data.user && !data.user.email_confirmed_at) {
+        if (data.session) {
+          // User is automatically signed in
           toast({
             title: "Account Created!",
-            description: "Please check your email and click the confirmation link to complete your registration.",
+            description: "Welcome to Brixium Global Bank!",
           });
-        } else if (data.session) {
-          // User is automatically signed in (email confirmation disabled)
+        } else {
           toast({
             title: "Account Created!",
-            description: "Welcome to Global Bank!",
+            description: "You can now sign in with your credentials.",
           });
         }
         

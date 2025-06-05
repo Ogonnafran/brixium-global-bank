@@ -11,8 +11,10 @@ import { AdminAuthProvider } from "./contexts/AdminAuthContext";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import AdminPanel from "./pages/AdminPanel";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./components/Dashboard";
+import AdminRoute from "./components/admin/AdminRoute";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,14 @@ const App = () => (
                   <Route path="/auth" element={<AuthPage />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/admin" element={<AdminPanel />} />
+                  <Route 
+                    path="/admin/dashboard" 
+                    element={
+                      <AdminRoute>
+                        <AdminDashboard />
+                      </AdminRoute>
+                    } 
+                  />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

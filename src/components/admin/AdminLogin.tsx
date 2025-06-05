@@ -3,13 +3,13 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Lock, Info } from 'lucide-react';
+import { Shield, Lock } from 'lucide-react';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 
 const AdminLogin: React.FC = () => {
   const [credentials, setCredentials] = useState({ 
-    email: 'admin@globalbank.com', 
-    password: 'Admin@12345' 
+    email: '', 
+    password: '' 
   });
   const { adminSignIn, isAdminLoading } = useAdminAuth();
 
@@ -27,10 +27,10 @@ const AdminLogin: React.FC = () => {
               <Shield className="w-8 h-8 text-white" />
             </div>
             <CardTitle className="text-2xl font-bold text-white">
-              Global Bank Admin
+              Brixium Admin
             </CardTitle>
             <p className="text-gray-300">
-              Secure admin portal for Global Bank
+              Secure admin portal for Brixium Global Bank
             </p>
           </CardHeader>
           <CardContent>
@@ -73,20 +73,7 @@ const AdminLogin: React.FC = () => {
               </Button>
             </form>
             
-            <div className="mt-6 p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
-              <div className="flex items-start space-x-2">
-                <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-blue-300 text-sm font-medium mb-1">Development Credentials</p>
-                  <p className="text-blue-200 text-xs">
-                    Email: admin@globalbank.com<br />
-                    Password: Admin@12345
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="mt-4 p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
+            <div className="mt-6 p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
               <p className="text-yellow-300 text-sm text-center">
                 ⚠️ Restricted Access - Admin credentials required
               </p>
