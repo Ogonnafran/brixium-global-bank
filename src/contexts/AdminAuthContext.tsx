@@ -124,14 +124,14 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       // Check if using default admin credentials
       if (email === DEFAULT_ADMIN_EMAIL && password === DEFAULT_ADMIN_PASSWORD) {
         // For development: create admin user if it doesn't exist
-        const { data: existingUser } = await supabase.auth.signInWithPassword({
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
-        if (existingUser.error && existingUser.error.message === 'Invalid login credentials') {
+        if (signInError && signInError.message === 'Invalid login credentials') {
           // Create the admin user
-          const { data: newUser, error: signUpError } = await supabase.auth.signUp({
+          const { error: signUpError } = await supabase.auth.signUp({
             email,
             password,
             options: {
@@ -150,16 +150,14 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             return { error: signUpError };
           }
 
-          if (newUser.user) {
-            toast({
-              title: "Admin Account Created",
-              description: "Default admin account has been set up.",
-            });
-          }
+          toast({
+            title: "Admin Account Created",
+            description: "Default admin account has been set up.",
+          });
         }
       }
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
