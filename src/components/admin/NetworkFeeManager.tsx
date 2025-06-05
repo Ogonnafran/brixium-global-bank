@@ -32,34 +32,17 @@ const NetworkFeeManager: React.FC = () => {
 
   const fetchSettings = async () => {
     try {
-      // Use a raw SQL query to fetch platform settings
-      const { data, error } = await supabase.rpc('get_platform_settings') as {
-        data: PlatformSettings | null;
-        error: any;
-      };
+      const { data, error } = await supabase.functions.invoke('platform-settings', {
+        method: 'GET',
+        body: new URLSearchParams({ operation: 'get_settings' })
+      });
 
-      // If the RPC function doesn't exist, fall back to direct table access
-      if (error && error.code === '42883') {
-        // Fallback: try direct access (this might not work due to RLS, but worth trying)
-        const { data: directData, error: directError } = await supabase
-          .from('platform_settings' as any)
-          .select('*')
-          .single();
+      if (error) {
+        console.error('Error fetching settings:', error);
+        return;
+      }
 
-        if (directError) {
-          console.error('Error fetching settings:', directError);
-          return;
-        }
-
-        if (directData) {
-          setNetworkFee(directData.network_fee || 25);
-          setCryptoAddresses(directData.crypto_addresses || {
-            BTC: '',
-            ETH: '',
-            USDT: ''
-          });
-        }
-      } else if (!error && data) {
+      if (data) {
         setNetworkFee(data.network_fee || 25);
         setCryptoAddresses(data.crypto_addresses || {
           BTC: '',
@@ -75,25 +58,15 @@ const NetworkFeeManager: React.FC = () => {
   const updateNetworkFee = async () => {
     setIsLoading(true);
     try {
-      // Use raw SQL to update platform settings
-      const { error } = await supabase.rpc('update_network_fee', {
-        new_fee: networkFee
+      const { data, error } = await supabase.functions.invoke('platform-settings', {
+        method: 'POST',
+        body: JSON.stringify({
+          operation: 'update_fee',
+          network_fee: networkFee
+        })
       });
 
-      // If RPC doesn't exist, try direct update
-      if (error && error.code === '42883') {
-        const { error: directError } = await supabase
-          .from('platform_settings' as any)
-          .upsert({
-            id: 1,
-            network_fee: networkFee,
-            updated_at: new Date().toISOString()
-          });
-
-        if (directError) throw directError;
-      } else if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Network Fee Updated",
@@ -113,25 +86,15 @@ const NetworkFeeManager: React.FC = () => {
   const updateCryptoAddresses = async () => {
     setIsLoading(true);
     try {
-      // Use raw SQL to update crypto addresses
-      const { error } = await supabase.rpc('update_crypto_addresses', {
-        addresses: cryptoAddresses
+      const { data, error } = await supabase.functions.invoke('platform-settings', {
+        method: 'POST',
+        body: JSON.stringify({
+          operation: 'update_addresses',
+          crypto_addresses: cryptoAddresses
+        })
       });
 
-      // If RPC doesn't exist, try direct update
-      if (error && error.code === '42883') {
-        const { error: directError } = await supabase
-          .from('platform_settings' as any)
-          .upsert({
-            id: 1,
-            crypto_addresses: cryptoAddresses,
-            updated_at: new Date().toISOString()
-          });
-
-        if (directError) throw directError;
-      } else if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Crypto Addresses Updated",
