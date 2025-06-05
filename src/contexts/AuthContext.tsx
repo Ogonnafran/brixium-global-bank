@@ -30,11 +30,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         setIsLoading(false);
         
+        // Handle different auth events
         if (event === 'SIGNED_IN' && session?.user) {
-          // Defer additional data fetching to prevent deadlocks
+          // User successfully signed in - redirect to dashboard
           setTimeout(() => {
             logActivity('login', { timestamp: new Date().toISOString() });
-          }, 0);
+            // Force redirect to dashboard
+            window.location.href = '/';
+          }, 100);
+        }
+        
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('Token refreshed successfully');
+        }
+        
+        if (event === 'USER_UPDATED') {
+          console.log('User updated:', session?.user);
         }
       }
     );
@@ -66,33 +77,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      
+      // Clean up any existing auth state first
+      localStorage.removeItem('supabase.auth.token');
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim().toLowerCase(),
         password,
       });
       
       if (error) {
+        console.error('Sign in error:', error);
+        
+        // Provide specific error messages
+        let errorMessage = error.message;
+        
+        if (error.message === 'Invalid login credentials') {
+          errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Please check your email and click the confirmation link before signing in.';
+        } else if (error.message.includes('too many requests')) {
+          errorMessage = 'Too many login attempts. Please wait a moment and try again.';
+        }
+        
         toast({
           title: "Sign In Failed",
-          description: error.message,
+          description: errorMessage,
           variant: "destructive",
         });
         return { error };
       }
 
-      if (data.user) {
+      if (data.user && data.session) {
+        console.log('Sign in successful:', data.user.email);
         toast({
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
+        // The redirect will be handled by onAuthStateChange
         return { error: null };
       }
       
-      return { error };
+      return { error: new Error('No user data received') };
     } catch (error: any) {
+      console.error('Sign in catch error:', error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: "An unexpected error occurred during sign in",
         variant: "destructive",
       });
       return { error };
@@ -104,38 +140,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, name: string) => {
     try {
       setIsLoading(true);
+      
+      // Clean up any existing auth state
+      localStorage.removeItem('supabase.auth.token');
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
       const redirectUrl = `${window.location.origin}/`;
       
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim().toLowerCase(),
         password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            name: name
+            name: name.trim()
           }
         }
       });
       
       if (error) {
+        console.error('Sign up error:', error);
+        
+        let errorMessage = error.message;
+        
+        if (error.message.includes('already registered')) {
+          errorMessage = 'This email is already registered. Please try signing in instead.';
+        } else if (error.message.includes('Password should be at least')) {
+          errorMessage = 'Password must be at least 6 characters long.';
+        } else if (error.message.includes('Unable to validate email')) {
+          errorMessage = 'Please enter a valid email address.';
+        }
+        
         toast({
           title: "Sign Up Failed",
-          description: error.message,
+          description: errorMessage,
           variant: "destructive",
         });
         return { error };
       }
 
-      toast({
-        title: "Account Created!",
-        description: "Please check your email to verify your account.",
-      });
+      if (data.user) {
+        console.log('Sign up successful:', data.user.email);
+        
+        // Check if email confirmation is required
+        if (!data.session && data.user && !data.user.email_confirmed_at) {
+          toast({
+            title: "Account Created!",
+            description: "Please check your email and click the confirmation link to complete your registration.",
+          });
+        } else if (data.session) {
+          // User is automatically signed in (email confirmation disabled)
+          toast({
+            title: "Account Created!",
+            description: "Welcome to Brixium Global Bank!",
+          });
+          // Redirect will be handled by onAuthStateChange
+        }
+        
+        return { error: null };
+      }
       
-      return { error: null };
+      return { error: new Error('No user data received') };
     } catch (error: any) {
+      console.error('Sign up catch error:', error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: "An unexpected error occurred during registration",
         variant: "destructive",
       });
       return { error };
@@ -161,7 +235,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut({ scope: 'global' });
       
       // Force page reload for clean state
-      window.location.href = '/';
+      window.location.href = '/auth';
     } catch (error) {
       console.error('Error signing out:', error);
       toast({

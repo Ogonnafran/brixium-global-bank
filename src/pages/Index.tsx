@@ -7,15 +7,17 @@ import AuthScreen from '../components/AuthScreen';
 import Dashboard from '../components/Dashboard';
 
 const Index = () => {
-  const [currentScreen, setCurrentScreen] = useState('welcome');
+  const [currentScreen, setCurrentScreen] = useState('loading');
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!isLoading) {
       if (user) {
+        console.log('User is authenticated, showing dashboard');
         setCurrentScreen('dashboard');
       } else {
+        console.log('User not authenticated, showing welcome screen');
         setCurrentScreen('welcome');
       }
     }
@@ -29,7 +31,7 @@ const Index = () => {
     setCurrentScreen('dashboard');
   };
 
-  if (isLoading) {
+  if (isLoading || currentScreen === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
         <div className="text-white text-xl">Loading...</div>

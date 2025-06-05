@@ -11,23 +11,43 @@ const AuthPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [signInData, setSignInData] = useState({ email: '', password: '' });
   const [signUpData, setSignUpData] = useState({ email: '', password: '', name: '', confirmPassword: '' });
-  const { signIn, signUp, user } = useAuth();
+  const [passwordError, setPasswordError] = useState('');
+  const { signIn, signUp, user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
+    // If user is already authenticated, redirect to dashboard
+    if (user && !authLoading) {
+      console.log('User is authenticated, redirecting to dashboard');
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
+
+  const validatePassword = (password: string) => {
+    if (password.length < 6) {
+      return 'Password must be at least 6 characters long';
+    }
+    return '';
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!signInData.email || !signInData.password) {
+      return;
+    }
+    
     setIsLoading(true);
     
-    const { error } = await signIn(signInData.email, signInData.password);
-    
-    if (!error) {
-      navigate('/');
+    try {
+      const { error } = await signIn(signInData.email, signInData.password);
+      
+      if (!error) {
+        // Success - the redirect will be handled by AuthContext
+        console.log('Sign in successful, redirect will be handled by context');
+      }
+    } catch (error) {
+      console.error('Sign in error:', error);
     }
     
     setIsLoading(false);
@@ -36,21 +56,47 @@ const AuthPage: React.FC = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (signUpData.password !== signUpData.confirmPassword) {
+    if (!signUpData.email || !signUpData.password || !signUpData.name) {
       return;
     }
     
+    // Validate password
+    const passwordValidation = validatePassword(signUpData.password);
+    if (passwordValidation) {
+      setPasswordError(passwordValidation);
+      return;
+    }
+    
+    if (signUpData.password !== signUpData.confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+    
+    setPasswordError('');
     setIsLoading(true);
     
-    const { error } = await signUp(signUpData.email, signUpData.password, signUpData.name);
-    
-    if (!error) {
-      // Reset form
-      setSignUpData({ email: '', password: '', name: '', confirmPassword: '' });
+    try {
+      const { error } = await signUp(signUpData.email, signUpData.password, signUpData.name);
+      
+      if (!error) {
+        // Reset form on successful signup
+        setSignUpData({ email: '', password: '', name: '', confirmPassword: '' });
+      }
+    } catch (error) {
+      console.error('Sign up error:', error);
     }
     
     setIsLoading(false);
   };
+
+  // Show loading while checking auth state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
@@ -85,6 +131,7 @@ const AuthPage: React.FC = () => {
                       onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
                       required
                       className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                      disabled={isLoading}
                     />
                   </div>
                   <div>
@@ -95,12 +142,13 @@ const AuthPage: React.FC = () => {
                       onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
                       required
                       className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                      disabled={isLoading}
                     />
                   </div>
                   <Button
                     type="submit"
                     className="w-full glow-button"
-                    disabled={isLoading}
+                    disabled={isLoading || !signInData.email || !signInData.password}
                   >
                     {isLoading ? 'Signing in...' : 'Sign In'}
                   </Button>
@@ -117,6 +165,7 @@ const AuthPage: React.FC = () => {
                       onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
                       required
                       className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                      disabled={isLoading}
                     />
                   </div>
                   <div>
@@ -127,16 +176,21 @@ const AuthPage: React.FC = () => {
                       onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
                       required
                       className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                      disabled={isLoading}
                     />
                   </div>
                   <div>
                     <Input
                       type="password"
-                      placeholder="Password"
+                      placeholder="Password (min 6 characters)"
                       value={signUpData.password}
-                      onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                      onChange={(e) => {
+                        setSignUpData({ ...signUpData, password: e.target.value });
+                        setPasswordError('');
+                      }}
                       required
                       className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                      disabled={isLoading}
                     />
                   </div>
                   <div>
@@ -144,15 +198,22 @@ const AuthPage: React.FC = () => {
                       type="password"
                       placeholder="Confirm Password"
                       value={signUpData.confirmPassword}
-                      onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
+                      onChange={(e) => {
+                        setSignUpData({ ...signUpData, confirmPassword: e.target.value });
+                        setPasswordError('');
+                      }}
                       required
                       className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                      disabled={isLoading}
                     />
                   </div>
+                  {passwordError && (
+                    <p className="text-red-400 text-sm">{passwordError}</p>
+                  )}
                   <Button
                     type="submit"
                     className="w-full glow-button"
-                    disabled={isLoading || signUpData.password !== signUpData.confirmPassword}
+                    disabled={isLoading || !signUpData.email || !signUpData.password || !signUpData.name || passwordError !== ''}
                   >
                     {isLoading ? 'Creating account...' : 'Sign Up'}
                   </Button>
@@ -161,6 +222,12 @@ const AuthPage: React.FC = () => {
             </Tabs>
           </CardContent>
         </Card>
+        
+        <div className="mt-6 text-center">
+          <p className="text-gray-400 text-sm">
+            🔐 Secure authentication powered by Supabase
+          </p>
+        </div>
       </div>
     </div>
   );
