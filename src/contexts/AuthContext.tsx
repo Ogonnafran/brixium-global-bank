@@ -32,11 +32,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Handle different auth events
         if (event === 'SIGNED_IN' && session?.user) {
-          // User successfully signed in - redirect to dashboard
+          console.log('User successfully signed in, redirecting to dashboard');
+          // Log activity after state is set
           setTimeout(() => {
             logActivity('login', { timestamp: new Date().toISOString() });
-            // Force redirect to dashboard
-            window.location.href = '/';
           }, 100);
         }
         
@@ -119,7 +118,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
-        // The redirect will be handled by onAuthStateChange
         return { error: null };
       }
       
@@ -149,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
       
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/dashboard`;
       
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
@@ -196,9 +194,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // User is automatically signed in (email confirmation disabled)
           toast({
             title: "Account Created!",
-            description: "Welcome to Brixium Global Bank!",
+            description: "Welcome to Global Bank!",
           });
-          // Redirect will be handled by onAuthStateChange
         }
         
         return { error: null };

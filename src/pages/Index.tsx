@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import WelcomeScreen from '../components/WelcomeScreen';
-import AuthScreen from '../components/AuthScreen';
 import Dashboard from '../components/Dashboard';
 
 const Index = () => {
@@ -27,10 +26,6 @@ const Index = () => {
     navigate('/auth');
   };
 
-  const handleAuthSuccess = () => {
-    setCurrentScreen('dashboard');
-  };
-
   if (isLoading || currentScreen === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -43,9 +38,6 @@ const Index = () => {
     <div className="min-h-screen">
       {currentScreen === 'welcome' && !user && (
         <WelcomeScreen onContinue={handleWelcomeContinue} />
-      )}
-      {currentScreen === 'auth' && !user && (
-        <AuthScreen onSuccess={handleAuthSuccess} />
       )}
       {(currentScreen === 'dashboard' || user) && (
         <Dashboard />

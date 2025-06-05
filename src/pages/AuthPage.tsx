@@ -43,8 +43,9 @@ const AuthPage: React.FC = () => {
       const { error } = await signIn(signInData.email, signInData.password);
       
       if (!error) {
-        // Success - the redirect will be handled by AuthContext
-        console.log('Sign in successful, redirect will be handled by context');
+        console.log('Sign in successful, redirecting to dashboard');
+        // Redirect to dashboard after successful login
+        navigate('/');
       }
     } catch (error) {
       console.error('Sign in error:', error);
@@ -81,6 +82,7 @@ const AuthPage: React.FC = () => {
       if (!error) {
         // Reset form on successful signup
         setSignUpData({ email: '', password: '', name: '', confirmPassword: '' });
+        console.log('Sign up successful, user will be redirected after email confirmation');
       }
     } catch (error) {
       console.error('Sign up error:', error);
@@ -102,8 +104,8 @@ const AuthPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Brixium</h1>
-          <p className="text-gray-400">Global Banking Platform</p>
+          <h1 className="text-4xl font-bold text-white mb-2">Global Bank</h1>
+          <p className="text-gray-400">Secure Digital Banking Platform</p>
         </div>
 
         <Card className="bg-white/10 backdrop-blur-lg border-white/20">
