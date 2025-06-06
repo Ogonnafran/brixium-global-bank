@@ -75,6 +75,44 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_confirmations: {
+        Row: {
+          confirmed_by_user_at: string | null
+          created_at: string
+          id: string
+          payment_hash: string
+          transaction_id: string
+          verified_by_admin_at: string | null
+          wallet_address: string
+        }
+        Insert: {
+          confirmed_by_user_at?: string | null
+          created_at?: string
+          id?: string
+          payment_hash: string
+          transaction_id: string
+          verified_by_admin_at?: string | null
+          wallet_address: string
+        }
+        Update: {
+          confirmed_by_user_at?: string | null
+          created_at?: string
+          id?: string
+          payment_hash?: string
+          transaction_id?: string
+          verified_by_admin_at?: string | null
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_confirmations_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_funds: {
         Row: {
           amount: number
@@ -148,6 +186,7 @@ export type Database = {
           risk_level: string | null
           status: Database["public"]["Enums"]["user_status"] | null
           updated_at: string | null
+          user_uid: string | null
         }
         Insert: {
           admin_notes?: string | null
@@ -161,6 +200,7 @@ export type Database = {
           risk_level?: string | null
           status?: Database["public"]["Enums"]["user_status"] | null
           updated_at?: string | null
+          user_uid?: string | null
         }
         Update: {
           admin_notes?: string | null
@@ -174,6 +214,7 @@ export type Database = {
           risk_level?: string | null
           status?: Database["public"]["Enums"]["user_status"] | null
           updated_at?: string | null
+          user_uid?: string | null
         }
         Relationships: []
       }
@@ -263,6 +304,42 @@ export type Database = {
         }
         Relationships: []
       }
+      transfer_requests: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          from_user_id: string
+          id: string
+          message: string | null
+          status: string | null
+          to_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency: string
+          from_user_id: string
+          id?: string
+          message?: string | null
+          status?: string | null
+          to_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          from_user_id?: string
+          id?: string
+          message?: string | null
+          status?: string | null
+          to_user_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -280,6 +357,33 @@ export type Database = {
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_addresses: {
+        Row: {
+          address: string
+          created_at: string
+          currency: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          currency: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

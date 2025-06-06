@@ -10,6 +10,7 @@ import NetworkFeeModal from './NetworkFeeModal';
 import PendingFundsModal from './PendingFundsModal';
 import CryptoWallet from './CryptoWallet';
 import LongPressButton from './LongPressButton';
+import ReceiveFunds from './ReceiveFunds';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserData } from '@/hooks/useUserData';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +19,7 @@ import { format } from 'date-fns';
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [showTransfer, setShowTransfer] = useState(false);
+  const [showReceive, setShowReceive] = useState(false);
   const [showNetworkFee, setShowNetworkFee] = useState(false);
   const [showPendingFunds, setShowPendingFunds] = useState(false);
   const [showCrypto, setShowCrypto] = useState(false);
@@ -52,6 +54,10 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleReceive = () => {
+    setShowReceive(true);
+  };
+
   const handleAdminAccess = () => {
     // Use programmatic navigation instead of window.location
     setTimeout(() => {
@@ -71,6 +77,10 @@ const Dashboard: React.FC = () => {
 
   if (showTransfer) {
     return <TransferFlow onBack={() => setShowTransfer(false)} />;
+  }
+
+  if (showReceive) {
+    return <ReceiveFunds onBack={() => setShowReceive(false)} />;
   }
 
   if (showCrypto) {
@@ -126,6 +136,7 @@ const Dashboard: React.FC = () => {
                 Send
               </Button>
               <Button
+                onClick={handleReceive}
                 variant="outline"
                 className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               >
