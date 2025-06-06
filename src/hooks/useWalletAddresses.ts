@@ -81,18 +81,24 @@ export const useWalletAddresses = () => {
         return { error: 'Insufficient balance for this transfer.' };
       }
 
-      // Start a transaction to ensure atomicity
-      const { data: transferData, error: transferError } = await supabase.rpc('process_internal_transfer', {
-        p_from_user_id: user.id,
-        p_to_user_id: recipientData.id,
-        p_amount: amount,
-        p_currency: currency,
-        p_message: message || ''
-      });
+      // Call the process_internal_transfer function using a direct RPC call
+      const { data: transferData, error: transferError } = await supabase
+        .rpc('process_internal_transfer' as any, {
+          p_from_user_id: user.id,
+          p_to_user_id: recipientData.id,
+          p_amount: amount,
+          p_currency: currency,
+          p_message: message || ''
+        });
 
       if (transferError) {
         console.error('Transfer error:', transferError);
         return { error: transferError.message || 'Transfer failed. Please try again.' };
+      }
+
+      // Check if the function returned an error
+      if (transferData && !transferData.success) {
+        return { error: transferData.error || 'Transfer failed. Please try again.' };
       }
 
       // Refresh data

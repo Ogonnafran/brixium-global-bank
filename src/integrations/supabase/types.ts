@@ -440,6 +440,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      process_internal_transfer: {
+        Args: {
+          p_from_user_id: string
+          p_to_user_id: string
+          p_amount: number
+          p_currency: string
+          p_message?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "user"
