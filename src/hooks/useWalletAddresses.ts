@@ -62,29 +62,45 @@ export const useWalletAddresses = () => {
         .single();
 
       if (recipientError || !recipientData) {
-        return { error: 'Recipient not found. Please check the User ID.' };
+        return { error: 'Recipient not found. Please check the Account ID.' };
       }
 
-      // Create transfer request
-      const { data, error } = await supabase
-        .from('transfer_requests')
-        .insert({
-          from_user_id: user.id,
-          to_user_id: recipientData.id,
-          amount,
-          currency,
-          message: message || '',
-          status: 'pending'
-        })
-        .select()
+      // Check sender's balance
+      const { data: senderWallet, error: walletError } = await supabase
+        .from('wallets')
+        .select('balance')
+        .eq('user_id', user.id)
+        .eq('currency', currency)
         .single();
 
-      if (error) throw error;
+      if (walletError || !senderWallet) {
+        return { error: 'Unable to verify balance. Please try again.' };
+      }
+
+      if ((senderWallet.balance || 0) < amount) {
+        return { error: 'Insufficient balance for this transfer.' };
+      }
+
+      // Start a transaction to ensure atomicity
+      const { data: transferData, error: transferError } = await supabase.rpc('process_internal_transfer', {
+        p_from_user_id: user.id,
+        p_to_user_id: recipientData.id,
+        p_amount: amount,
+        p_currency: currency,
+        p_message: message || ''
+      });
+
+      if (transferError) {
+        console.error('Transfer error:', transferError);
+        return { error: transferError.message || 'Transfer failed. Please try again.' };
+      }
+
+      // Refresh data
+      await Promise.all([
+        fetchTransferRequests()
+      ]);
       
-      // Refresh transfer requests
-      await fetchTransferRequests();
-      
-      return { data, error: null };
+      return { data: transferData, error: null };
     } catch (err: any) {
       console.error('Error creating transfer request:', err);
       return { error: err.message };
