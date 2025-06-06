@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,11 +15,20 @@ const AuthPage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If user is already authenticated, redirect to dashboard
+    let redirectTimeout: NodeJS.Timeout;
+
     if (user && !authLoading) {
       console.log('User is authenticated, redirecting to dashboard');
-      navigate('/');
+      redirectTimeout = setTimeout(() => {
+        navigate('/');
+      }, 100);
     }
+
+    return () => {
+      if (redirectTimeout) {
+        clearTimeout(redirectTimeout);
+      }
+    };
   }, [user, authLoading, navigate]);
 
   const validatePassword = (password: string) => {
@@ -33,7 +41,7 @@ const AuthPage: React.FC = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!signInData.email || !signInData.password) {
+    if (!signInData.email || !signInData.password || isLoading) {
       return;
     }
     
@@ -43,25 +51,22 @@ const AuthPage: React.FC = () => {
       const { error } = await signIn(signInData.email, signInData.password);
       
       if (!error) {
-        console.log('Sign in successful, redirecting to dashboard');
-        // Redirect to dashboard after successful login
-        navigate('/');
+        console.log('Sign in successful, will redirect automatically');
       }
     } catch (error) {
       console.error('Sign in error:', error);
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!signUpData.email || !signUpData.password || !signUpData.name) {
+    if (!signUpData.email || !signUpData.password || !signUpData.name || isLoading) {
       return;
     }
     
-    // Validate password
     const passwordValidation = validatePassword(signUpData.password);
     if (passwordValidation) {
       setPasswordError(passwordValidation);
@@ -80,19 +85,16 @@ const AuthPage: React.FC = () => {
       const { error } = await signUp(signUpData.email, signUpData.password, signUpData.name);
       
       if (!error) {
-        // Reset form on successful signup
         setSignUpData({ email: '', password: '', name: '', confirmPassword: '' });
         console.log('Sign up successful');
-        // If user is automatically signed in, they'll be redirected by the auth context
       }
     } catch (error) {
       console.error('Sign up error:', error);
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
-  // Show loading while checking auth state
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">

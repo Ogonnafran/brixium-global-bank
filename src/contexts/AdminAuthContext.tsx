@@ -14,7 +14,6 @@ interface AdminAuthContextType {
 
 const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefined);
 
-// Updated admin credentials
 const ADMIN_EMAIL = 'brixiumglobalbank@gmail.com';
 const ADMIN_PASSWORD = 'ogonna1@1';
 
@@ -22,17 +21,18 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [adminUser, setAdminUser] = useState<User | null>(null);
   const [isAdminLoading, setIsAdminLoading] = useState(true);
   const [isAuthorizedAdmin, setIsAuthorizedAdmin] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
+    let mounted = true;
+
     const checkAdminAuth = async () => {
       try {
-        // Check if admin is already logged in via localStorage
         const storedAdminAuth = localStorage.getItem('admin_authenticated');
         const storedAdminEmail = localStorage.getItem('admin_email');
         
-        if (storedAdminAuth === 'true' && storedAdminEmail === ADMIN_EMAIL) {
-          // Create a mock admin user object
+        if (storedAdminAuth === 'true' && storedAdminEmail === ADMIN_EMAIL && mounted) {
           const mockAdminUser: User = {
             id: 'admin-user-id',
             email: ADMIN_EMAIL,
@@ -58,20 +58,25 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       } catch (error) {
         console.error('Admin auth check error:', error);
       } finally {
-        setIsAdminLoading(false);
+        if (mounted) {
+          setIsAdminLoading(false);
+          setHasInitialized(true);
+        }
       }
     };
 
     checkAdminAuth();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const adminSignIn = async (email: string, password: string) => {
     try {
       setIsAdminLoading(true);
       
-      // Check hardcoded admin credentials
       if (email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() && password === ADMIN_PASSWORD) {
-        // Create mock admin user
         const mockAdminUser: User = {
           id: 'admin-user-id',
           email: ADMIN_EMAIL,
@@ -90,7 +95,6 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           role: 'authenticated'
         };
 
-        // Store admin auth in localStorage for persistence
         localStorage.setItem('admin_authenticated', 'true');
         localStorage.setItem('admin_email', ADMIN_EMAIL);
         
@@ -103,11 +107,6 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
 
         console.log('Admin successfully authenticated');
-        
-        // Redirect to admin dashboard
-        setTimeout(() => {
-          window.location.href = '/admin/dashboard';
-        }, 1000);
         
         return { error: null };
       } else {
@@ -132,7 +131,6 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const adminSignOut = async () => {
     try {
-      // Clear admin auth from localStorage
       localStorage.removeItem('admin_authenticated');
       localStorage.removeItem('admin_email');
       
@@ -145,11 +143,6 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
       
       console.log('Admin signed out successfully');
-      
-      // Redirect to admin login
-      setTimeout(() => {
-        window.location.href = '/admin';
-      }, 1000);
     } catch (error) {
       console.error('Error signing out:', error);
       toast({
@@ -162,7 +155,7 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const value = {
     adminUser,
-    isAdminLoading,
+    isAdminLoading: isAdminLoading || !hasInitialized,
     adminSignIn,
     adminSignOut,
     isAuthorizedAdmin,

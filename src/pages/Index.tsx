@@ -11,25 +11,37 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoading) {
-      // Check for authenticated user or persistent session
-      const isAuthenticated = user || localStorage.getItem('user_authenticated') === 'true';
+    let mounted = true;
+
+    if (!isLoading && mounted) {
+      // Simplified logic to prevent loops
+      const isAuthenticated = user && session;
+      const hasPersistedSession = localStorage.getItem('user_authenticated') === 'true';
       
-      if (isAuthenticated && (user || session)) {
+      if (isAuthenticated) {
         console.log('User is authenticated, showing dashboard');
         setCurrentScreen('dashboard');
-      } else if (isAuthenticated && !user && !session) {
-        // Persistent session exists but no active session, refresh to get session
-        console.log('Persistent session found, refreshing...');
-        window.location.reload();
+      } else if (hasPersistedSession && !user) {
+        // Brief delay to allow auth context to initialize
+        console.log('Waiting for session restoration...');
+        setTimeout(() => {
+          if (mounted && !user) {
+            localStorage.removeItem('user_authenticated');
+            localStorage.removeItem('user_email');
+            setCurrentScreen('welcome');
+          }
+        }, 1000);
       } else {
         console.log('User not authenticated, showing welcome screen');
-        // Clear any stale localStorage data
         localStorage.removeItem('user_authenticated');
         localStorage.removeItem('user_email');
         setCurrentScreen('welcome');
       }
     }
+
+    return () => {
+      mounted = false;
+    };
   }, [user, isLoading, session]);
 
   const handleWelcomeContinue = () => {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +35,6 @@ const Dashboard: React.FC = () => {
   }, 0);
 
   const handleRefresh = () => {
-    // Trigger haptic feedback
     if (navigator.vibrate) {
       navigator.vibrate(50);
     }
@@ -52,6 +50,13 @@ const Dashboard: React.FC = () => {
     } else {
       setShowTransfer(true);
     }
+  };
+
+  const handleAdminAccess = () => {
+    // Use programmatic navigation instead of window.location
+    setTimeout(() => {
+      window.location.href = '/admin';
+    }, 100);
   };
 
   const hasPendingFunds = totalUSD === 0 && wallets.some(w => w.currency === 'USD');
@@ -156,7 +161,7 @@ const Dashboard: React.FC = () => {
         {/* Quick Actions */}
         <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-6">
           <button 
-            onClick={() => window.location.href = '/admin'}
+            onClick={handleAdminAccess}
             className="flex flex-col items-center space-y-2 p-2 sm:p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-all duration-300 hover:scale-105 active:scale-95"
           >
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
