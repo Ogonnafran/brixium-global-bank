@@ -26,7 +26,7 @@ const App = () => (
             <AppStateProvider>
               <Toaster />
               <Sonner />
-              <BrowserRouter>
+              <BrowserRouter basename="/brixium-nexus-wallet">
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<AuthPage />} />
