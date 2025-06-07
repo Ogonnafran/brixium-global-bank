@@ -11,9 +11,27 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
+  updatePassword: (password: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Auth state cleanup utility
+const cleanupAuthState = () => {
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+  localStorage.removeItem('user_authenticated');
+  localStorage.removeItem('user_email');
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -27,9 +45,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initializeAuth = async () => {
       try {
+        // Set up auth state listener first
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            if (!mounted) return;
+
+            console.log('Auth state changed:', event, session?.user?.email);
+            setSession(session);
+            setUser(session?.user ?? null);
+            
+            if (event === 'SIGNED_IN' && session?.user) {
+              localStorage.setItem('user_authenticated', 'true');
+              localStorage.setItem('user_email', session.user.email || '');
+              
+              // Defer activity logging to prevent deadlocks
+              setTimeout(() => {
+                if (mounted) {
+                  logActivity('login', { timestamp: new Date().toISOString() });
+                }
+              }, 100);
+            }
+            
+            if (event === 'SIGNED_OUT') {
+              cleanupAuthState();
+            }
+            
+            if (event === 'PASSWORD_RECOVERY') {
+              toast({
+                title: "Password Reset",
+                description: "Please check your email for password reset instructions.",
+              });
+            }
+          }
+        );
+
+        // Then check for existing session
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting session:', error);
+          cleanupAuthState();
         } else if (mounted) {
           console.log('Initial session check:', session?.user?.email || 'No session');
           setSession(session);
@@ -40,8 +94,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem('user_email', session.user.email || '');
           }
         }
+
+        // Cleanup on unmount
+        return () => {
+          mounted = false;
+          subscription.unsubscribe();
+        };
       } catch (error) {
         console.error('Session initialization error:', error);
+        if (mounted) {
+          cleanupAuthState();
+        }
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -50,47 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-
-        console.log('Auth state changed:', event, session?.user?.email);
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Handle different auth events without causing redirects
-        if (event === 'SIGNED_IN' && session?.user) {
-          console.log('User successfully signed in');
-          localStorage.setItem('user_authenticated', 'true');
-          localStorage.setItem('user_email', session.user.email || '');
-          
-          // Log activity after a short delay to prevent loops
-          setTimeout(() => {
-            if (mounted) {
-              logActivity('login', { timestamp: new Date().toISOString() });
-            }
-          }, 500);
-        }
-        
-        if (event === 'SIGNED_OUT') {
-          console.log('User signed out, clearing localStorage');
-          localStorage.removeItem('user_authenticated');
-          localStorage.removeItem('user_email');
-        }
-        
-        if (event === 'TOKEN_REFRESHED') {
-          console.log('Token refreshed successfully');
-        }
-      }
-    );
-
     initializeAuth();
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
   }, []);
 
   const logActivity = async (action: string, details: any) => {
@@ -113,6 +136,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       
+      // Clean up any existing state
+      cleanupAuthState();
+      
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
+      }
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
@@ -126,6 +158,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           errorMessage = 'Invalid email or password. Please check your credentials and try again.';
         } else if (error.message.includes('too many requests')) {
           errorMessage = 'Too many login attempts. Please wait a moment and try again.';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Please check your email and confirm your account before signing in.';
         }
         
         toast({
@@ -142,6 +176,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
+        
+        // Force page reload for clean state
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 100);
+        
         return { error: null };
       }
       
@@ -163,6 +203,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       
+      // Clean up any existing state
+      cleanupAuthState();
+      
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
@@ -170,7 +213,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             name: name.trim()
           },
-          emailRedirectTo: `${window.location.origin}/auth`
+          emailRedirectTo: `${window.location.origin}/`
         }
       });
       
@@ -202,6 +245,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             title: "Account Created!",
             description: "Welcome to Brixium Global Bank! You're now signed in.",
           });
+          
+          // Force page reload for clean state
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 100);
         } else {
           toast({
             title: "Account Created!",
@@ -226,18 +274,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?mode=reset`,
+      });
+      
+      if (error) {
+        console.error('Password reset error:', error);
+        toast({
+          title: "Password Reset Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      toast({
+        title: "Password Reset Sent",
+        description: "Please check your email for password reset instructions.",
+      });
+      
+      return { error: null };
+    } catch (error: any) {
+      console.error('Password reset catch error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+      return { error };
+    }
+  };
+
+  const updatePassword = async (password: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: password
+      });
+      
+      if (error) {
+        console.error('Password update error:', error);
+        toast({
+          title: "Password Update Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      toast({
+        title: "Password Updated",
+        description: "Your password has been successfully updated.",
+      });
+      
+      return { error: null };
+    } catch (error: any) {
+      console.error('Password update catch error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+      return { error };
+    }
+  };
+
   const signOut = async () => {
     try {
       if (user) {
         await logActivity('logout', { timestamp: new Date().toISOString() });
       }
       
-      localStorage.removeItem('user_authenticated');
-      localStorage.removeItem('user_email');
+      cleanupAuthState();
       
       await supabase.auth.signOut({ scope: 'global' });
       
-      // Use programmatic navigation instead of window.location
+      // Force page reload for clean state
       setTimeout(() => {
         window.location.href = '/auth';
       }, 100);
@@ -258,6 +371,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signUp,
     signOut,
+    resetPassword,
+    updatePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

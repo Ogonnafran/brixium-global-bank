@@ -15,6 +15,8 @@ interface UserProfile {
   kyc_status: string;
   risk_level: string;
   user_uid?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface Wallet {
@@ -24,6 +26,8 @@ interface Wallet {
   symbol: string;
   type: 'fiat' | 'crypto';
   status: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export const useUserData = () => {
@@ -44,8 +48,16 @@ export const useUserData = () => {
         .eq('id', user.id)
         .single();
 
-      if (error) throw error;
-      setProfile(data);
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        throw error;
+      }
+      
+      if (data) {
+        setProfile(data);
+      } else {
+        // Profile doesn't exist, this might happen in edge cases
+        console.warn('User profile not found, user might need to re-register');
+      }
     } catch (err: any) {
       console.error('Error fetching profile:', err);
       setError(err.message);
@@ -71,7 +83,9 @@ export const useUserData = () => {
         balance: wallet.balance || 0,
         symbol: wallet.symbol,
         type: wallet.type as 'fiat' | 'crypto',
-        status: wallet.status || 'active'
+        status: wallet.status || 'active',
+        created_at: wallet.created_at || undefined,
+        updated_at: wallet.updated_at || undefined
       }));
       
       setWallets(transformedWallets);
@@ -104,12 +118,30 @@ export const useUserData = () => {
     if (!user) return { error: 'User not authenticated' };
 
     try {
+      // Input validation
+      if (!transactionData.amount || transactionData.amount <= 0) {
+        return { error: 'Amount must be greater than zero' };
+      }
+
+      if (!transactionData.currency || !transactionData.currency.trim()) {
+        return { error: 'Currency is required' };
+      }
+
+      if (!transactionData.type) {
+        return { error: 'Transaction type is required' };
+      }
+
       const insertData: TransactionInsert = {
         user_id: user.id,
         amount: transactionData.amount,
-        currency: transactionData.currency,
+        currency: transactionData.currency.trim().toUpperCase(),
         type: transactionData.type,
-        ...transactionData
+        status: transactionData.status || 'pending',
+        from_address: transactionData.from_address?.trim() || null,
+        to_address: transactionData.to_address?.trim() || null,
+        destination: transactionData.destination?.trim() || null,
+        network_fee: transactionData.network_fee || 0,
+        risk_score: transactionData.risk_score || 0
       };
 
       const { data, error } = await supabase
@@ -133,6 +165,8 @@ export const useUserData = () => {
   useEffect(() => {
     if (user) {
       setIsLoading(true);
+      setError(null);
+      
       Promise.all([
         fetchUserProfile(),
         fetchWallets(),
@@ -140,10 +174,66 @@ export const useUserData = () => {
       ]).finally(() => {
         setIsLoading(false);
       });
+
+      // Set up real-time subscriptions for live data updates
+      const profileSubscription = supabase
+        .channel('profile_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`
+          },
+          () => {
+            fetchUserProfile();
+          }
+        )
+        .subscribe();
+
+      const walletsSubscription = supabase
+        .channel('wallets_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'wallets',
+            filter: `user_id=eq.${user.id}`
+          },
+          () => {
+            fetchWallets();
+          }
+        )
+        .subscribe();
+
+      const transactionsSubscription = supabase
+        .channel('transactions_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'transactions',
+            filter: `user_id=eq.${user.id}`
+          },
+          () => {
+            fetchTransactions();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        profileSubscription.unsubscribe();
+        walletsSubscription.unsubscribe();
+        transactionsSubscription.unsubscribe();
+      };
     } else {
       setProfile(null);
       setWallets([]);
       setTransactions([]);
+      setError(null);
     }
   }, [user]);
 
@@ -156,6 +246,7 @@ export const useUserData = () => {
     refetchData: () => {
       if (user) {
         setIsLoading(true);
+        setError(null);
         Promise.all([
           fetchUserProfile(),
           fetchWallets(),

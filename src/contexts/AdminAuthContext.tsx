@@ -14,9 +14,6 @@ interface AdminAuthContextType {
 
 const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefined);
 
-const ADMIN_EMAIL = 'brixiumglobalbank@gmail.com';
-const ADMIN_PASSWORD = 'ogonna1@1';
-
 export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [adminUser, setAdminUser] = useState<User | null>(null);
   const [isAdminLoading, setIsAdminLoading] = useState(true);
@@ -29,34 +26,37 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const checkAdminAuth = async () => {
       try {
-        const storedAdminAuth = localStorage.getItem('admin_authenticated');
-        const storedAdminEmail = localStorage.getItem('admin_email');
+        // Check if user is authenticated and has admin role
+        const { data: { session } } = await supabase.auth.getSession();
         
-        if (storedAdminAuth === 'true' && storedAdminEmail === ADMIN_EMAIL && mounted) {
-          const mockAdminUser: User = {
-            id: 'admin-user-id',
-            email: ADMIN_EMAIL,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            app_metadata: {},
-            user_metadata: { name: 'Brixium Admin' },
-            aud: 'authenticated',
-            confirmation_sent_at: null,
-            confirmed_at: new Date().toISOString(),
-            email_confirmed_at: new Date().toISOString(),
-            identities: [],
-            last_sign_in_at: new Date().toISOString(),
-            phone: null,
-            recovery_sent_at: null,
-            role: 'authenticated'
-          };
-          
-          setAdminUser(mockAdminUser);
-          setIsAuthorizedAdmin(true);
-          console.log('Admin session restored from localStorage');
+        if (session?.user && mounted) {
+          // Check if user has admin role
+          const { data: roleData, error } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .eq('role', 'admin')
+            .single();
+
+          if (!error && roleData && mounted) {
+            setAdminUser(session.user);
+            setIsAuthorizedAdmin(true);
+            console.log('Admin session restored:', session.user.email);
+          } else if (mounted) {
+            // User is logged in but not an admin
+            setAdminUser(null);
+            setIsAuthorizedAdmin(false);
+          }
+        } else if (mounted) {
+          setAdminUser(null);
+          setIsAuthorizedAdmin(false);
         }
       } catch (error) {
         console.error('Admin auth check error:', error);
+        if (mounted) {
+          setAdminUser(null);
+          setIsAuthorizedAdmin(false);
+        }
       } finally {
         if (mounted) {
           setIsAdminLoading(false);
@@ -76,29 +76,70 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       setIsAdminLoading(true);
       
-      if (email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() && password === ADMIN_PASSWORD) {
-        const mockAdminUser: User = {
-          id: 'admin-user-id',
-          email: ADMIN_EMAIL,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          app_metadata: {},
-          user_metadata: { name: 'Brixium Admin' },
-          aud: 'authenticated',
-          confirmation_sent_at: null,
-          confirmed_at: new Date().toISOString(),
-          email_confirmed_at: new Date().toISOString(),
-          identities: [],
-          last_sign_in_at: new Date().toISOString(),
-          phone: null,
-          recovery_sent_at: null,
-          role: 'authenticated'
-        };
+      // Validate inputs
+      if (!email || !password) {
+        const error = new Error('Email and password are required');
+        toast({
+          title: "Access Denied",
+          description: "Please enter both email and password.",
+          variant: "destructive",
+        });
+        return { error };
+      }
 
-        localStorage.setItem('admin_authenticated', 'true');
-        localStorage.setItem('admin_email', ADMIN_EMAIL);
-        
-        setAdminUser(mockAdminUser);
+      // Sanitize email
+      const sanitizedEmail = email.trim().toLowerCase();
+
+      // Sign in with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: sanitizedEmail,
+        password,
+      });
+      
+      if (error) {
+        console.error('Admin sign in error:', error);
+        toast({
+          title: "Access Denied",
+          description: "Invalid admin credentials.",
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      if (data.user) {
+        // Check if user has admin role
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .eq('role', 'admin')
+          .single();
+
+        if (roleError || !roleData) {
+          // User doesn't have admin role
+          await supabase.auth.signOut();
+          toast({
+            title: "Access Denied",
+            description: "You do not have admin privileges.",
+            variant: "destructive",
+          });
+          return { error: new Error('Insufficient privileges') };
+        }
+
+        // Log admin access
+        await supabase.from('activity_logs').insert({
+          user_id: data.user.id,
+          action: 'admin_login',
+          details: { 
+            timestamp: new Date().toISOString(),
+            ip_address: '0.0.0.0',
+            success: true
+          },
+          ip_address: '0.0.0.0',
+          user_agent: navigator.userAgent
+        });
+
+        setAdminUser(data.user);
         setIsAuthorizedAdmin(true);
 
         toast({
@@ -106,18 +147,14 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           description: "Welcome to the Brixium admin panel.",
         });
 
-        console.log('Admin successfully authenticated');
+        console.log('Admin successfully authenticated:', data.user.email);
         
         return { error: null };
-      } else {
-        toast({
-          title: "Access Denied",
-          description: "Invalid admin credentials.",
-          variant: "destructive",
-        });
-        return { error: new Error('Invalid admin credentials') };
       }
+
+      return { error: new Error('Authentication failed') };
     } catch (error: any) {
+      console.error('Admin sign in catch error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred during admin authentication",
@@ -131,11 +168,24 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const adminSignOut = async () => {
     try {
-      localStorage.removeItem('admin_authenticated');
-      localStorage.removeItem('admin_email');
+      if (adminUser) {
+        // Log admin logout
+        await supabase.from('activity_logs').insert({
+          user_id: adminUser.id,
+          action: 'admin_logout',
+          details: { 
+            timestamp: new Date().toISOString(),
+            ip_address: '0.0.0.0'
+          },
+          ip_address: '0.0.0.0',
+          user_agent: navigator.userAgent
+        });
+      }
       
       setAdminUser(null);
       setIsAuthorizedAdmin(false);
+      
+      await supabase.auth.signOut({ scope: 'global' });
       
       toast({
         title: "Signed Out",
@@ -143,6 +193,11 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
       
       console.log('Admin signed out successfully');
+      
+      // Redirect to admin login
+      setTimeout(() => {
+        window.location.href = '/admin';
+      }, 100);
     } catch (error) {
       console.error('Error signing out:', error);
       toast({

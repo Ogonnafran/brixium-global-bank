@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type WalletAddress = Database['public']['Tables']['wallet_addresses']['Row'];
@@ -9,6 +10,7 @@ type TransferRequest = Database['public']['Tables']['transfer_requests']['Row'];
 
 export const useWalletAddresses = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [walletAddresses, setWalletAddresses] = useState<WalletAddress[]>([]);
   const [transferRequests, setTransferRequests] = useState<TransferRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -54,15 +56,52 @@ export const useWalletAddresses = () => {
     if (!user) return { error: 'User not authenticated' };
 
     try {
-      // First, find the recipient by user_uid
+      // Input validation
+      if (!toUserUid || !toUserUid.trim()) {
+        return { error: 'Recipient Account ID is required' };
+      }
+
+      if (amount <= 0) {
+        return { error: 'Amount must be greater than zero' };
+      }
+
+      if (!currency || !currency.trim()) {
+        return { error: 'Currency is required' };
+      }
+
+      // Sanitize inputs
+      const sanitizedToUserUid = toUserUid.trim();
+      const sanitizedCurrency = currency.trim().toUpperCase();
+      const sanitizedMessage = message?.trim() || '';
+
+      // Rate limiting check
+      const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+      const { data: recentTransfers, error: rateLimitError } = await supabase
+        .from('transfer_requests')
+        .select('id')
+        .eq('from_user_id', user.id)
+        .gte('created_at', oneMinuteAgo);
+
+      if (rateLimitError) {
+        console.error('Rate limit check error:', rateLimitError);
+      } else if (recentTransfers && recentTransfers.length >= 5) {
+        return { error: 'Too many transfer requests. Please wait a moment before trying again.' };
+      }
+
+      // Find the recipient by user_uid
       const { data: recipientData, error: recipientError } = await supabase
         .from('profiles')
         .select('id')
-        .eq('user_uid', toUserUid)
+        .eq('user_uid', sanitizedToUserUid)
         .single();
 
       if (recipientError || !recipientData) {
-        return { error: 'Recipient not found. Please check the Account ID.' };
+        return { error: 'Recipient not found. Please check the Account ID and try again.' };
+      }
+
+      // Prevent self-transfer
+      if (recipientData.id === user.id) {
+        return { error: 'You cannot transfer funds to yourself.' };
       }
 
       // Check sender's balance
@@ -70,7 +109,7 @@ export const useWalletAddresses = () => {
         .from('wallets')
         .select('balance')
         .eq('user_id', user.id)
-        .eq('currency', currency)
+        .eq('currency', sanitizedCurrency)
         .single();
 
       if (walletError || !senderWallet) {
@@ -81,14 +120,14 @@ export const useWalletAddresses = () => {
         return { error: 'Insufficient balance for this transfer.' };
       }
 
-      // Call the process_internal_transfer function using a direct RPC call
+      // Call the process_internal_transfer function
       const { data: transferData, error: transferError } = await supabase
         .rpc('process_internal_transfer' as any, {
           p_from_user_id: user.id,
           p_to_user_id: recipientData.id,
           p_amount: amount,
-          p_currency: currency,
-          p_message: message || ''
+          p_currency: sanitizedCurrency,
+          p_message: sanitizedMessage
         });
 
       if (transferError) {
@@ -101,6 +140,12 @@ export const useWalletAddresses = () => {
         return { error: transferData.error || 'Transfer failed. Please try again.' };
       }
 
+      // Show success message
+      toast({
+        title: "Transfer Successful",
+        description: `Successfully sent ${amount} ${sanitizedCurrency} to ${sanitizedToUserUid}`,
+      });
+
       // Refresh data
       await Promise.all([
         fetchTransferRequests()
@@ -109,7 +154,7 @@ export const useWalletAddresses = () => {
       return { data: transferData, error: null };
     } catch (err: any) {
       console.error('Error creating transfer request:', err);
-      return { error: err.message };
+      return { error: err.message || 'An unexpected error occurred' };
     }
   };
 
@@ -122,6 +167,43 @@ export const useWalletAddresses = () => {
       ]).finally(() => {
         setIsLoading(false);
       });
+
+      // Set up real-time subscriptions
+      const walletAddressesSubscription = supabase
+        .channel('wallet_addresses_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'wallet_addresses',
+            filter: `user_id=eq.${user.id}`
+          },
+          () => {
+            fetchWalletAddresses();
+          }
+        )
+        .subscribe();
+
+      const transferRequestsSubscription = supabase
+        .channel('transfer_requests_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'transfer_requests'
+          },
+          () => {
+            fetchTransferRequests();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        walletAddressesSubscription.unsubscribe();
+        transferRequestsSubscription.unsubscribe();
+      };
     } else {
       setWalletAddresses([]);
       setTransferRequests([]);

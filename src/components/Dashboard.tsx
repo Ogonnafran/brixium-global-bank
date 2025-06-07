@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUserData } from '@/hooks/useUserData';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { RefreshCw, Bell, Plus, ArrowUpRight, BarChart3, Settings, Wallet, Home, TrendingUp } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('home');
@@ -24,26 +26,50 @@ const Dashboard: React.FC = () => {
   const [showPendingFunds, setShowPendingFunds] = useState(false);
   const [showCrypto, setShowCrypto] = useState(false);
   const [balanceHidden, setBalanceHidden] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const { user } = useAuth();
-  const { profile, wallets, transactions, isLoading } = useUserData();
+  const { profile, wallets, transactions, isLoading, refetchData } = useUserData();
   const { toast } = useToast();
   
   const userName = profile?.name || user?.email?.split('@')[0] || 'User';
   
+  // Calculate total USD value with proper exchange rates
   const totalUSD = wallets.reduce((sum, wallet) => {
-    const rates: { [key: string]: number } = { USD: 1, EUR: 1.1, GBP: 1.25, BTC: 45000, ETH: 2500 };
+    const rates: { [key: string]: number } = { 
+      USD: 1, 
+      EUR: 1.1, 
+      GBP: 1.25, 
+      BTC: 45000, 
+      ETH: 2500,
+      USDT: 1
+    };
     return sum + ((wallet.balance || 0) * (rates[wallet.currency] || 1));
   }, 0);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
     if (navigator.vibrate) {
       navigator.vibrate(50);
     }
-    toast({
-      title: 'Refreshed',
-      description: 'Account data has been updated.'
-    });
+    
+    try {
+      await refetchData();
+      toast({
+        title: 'Refreshed',
+        description: 'Account data has been updated.'
+      });
+    } catch (error) {
+      toast({
+        title: 'Refresh Failed',
+        description: 'Unable to refresh data. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 1000);
+    }
   };
 
   const handleTransfer = () => {
@@ -58,19 +84,27 @@ const Dashboard: React.FC = () => {
     setShowReceive(true);
   };
 
-  const handleAdminAccess = () => {
-    // Use programmatic navigation instead of window.location
-    setTimeout(() => {
-      window.location.href = '/admin';
-    }, 100);
-  };
-
+  // Check for pending funds (simulated for demo)
   const hasPendingFunds = totalUSD === 0 && wallets.some(w => w.currency === 'USD');
+
+  // Auto-refresh data every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isRefreshing && !showTransfer && !showReceive && !showCrypto) {
+        refetchData();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [isRefreshing, showTransfer, showReceive, showCrypto, refetchData]);
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="text-white text-xl">Loading...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <div className="text-white text-xl">Loading...</div>
+        </div>
       </div>
     );
   }
@@ -104,13 +138,21 @@ const Dashboard: React.FC = () => {
               variant="ghost"
               size="sm"
               onClick={handleRefresh}
+              disabled={isRefreshing}
               className="text-white hover:bg-white/10 rounded-full p-2 transition-all duration-200 hover:scale-105"
             >
-              🔔
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/10 rounded-full p-2 transition-all duration-200 hover:scale-105"
+            >
+              <Bell className="w-4 h-4" />
             </Button>
             <SecurityScore score={95} />
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-400 to-purple-600 rounded-full flex items-center justify-center ring-2 ring-blue-400/30 pulse-glow">
-              <span className="text-white font-semibold text-sm sm:text-base">{userName[0]}</span>
+              <span className="text-white font-semibold text-sm sm:text-base">{userName[0].toUpperCase()}</span>
             </div>
           </div>
         </div>
@@ -133,6 +175,7 @@ const Dashboard: React.FC = () => {
                 onClick={handleTransfer}
                 className="flex-1 glow-button text-white font-semibold py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               >
+                <ArrowUpRight className="w-4 h-4 mr-2" />
                 Send
               </Button>
               <Button
@@ -140,6 +183,7 @@ const Dashboard: React.FC = () => {
                 variant="outline"
                 className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               >
+                <Plus className="w-4 h-4 mr-2" />
                 Receive
               </Button>
             </div>
@@ -172,18 +216,21 @@ const Dashboard: React.FC = () => {
         {/* Quick Actions */}
         <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-6">
           <button 
-            onClick={handleAdminAccess}
+            onClick={() => setShowTransfer(true)}
             className="flex flex-col items-center space-y-2 p-2 sm:p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-all duration-300 hover:scale-105 active:scale-95"
           >
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
-              <span className="text-lg sm:text-2xl">👑</span>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+              <ArrowUpRight className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
             </div>
-            <span className="text-xs text-gray-300">Admin Panel</span>
+            <span className="text-xs text-gray-300">Send Money</span>
           </button>
           
-          <button className="flex flex-col items-center space-y-2 p-2 sm:p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-all duration-300 hover:scale-105 active:scale-95">
+          <button 
+            onClick={() => setShowReceive(true)}
+            className="flex flex-col items-center space-y-2 p-2 sm:p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-all duration-300 hover:scale-105 active:scale-95"
+          >
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
-              <span className="text-lg sm:text-2xl">💰</span>
+              <Plus className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" />
             </div>
             <span className="text-xs text-gray-300">Add Money</span>
           </button>
@@ -198,9 +245,12 @@ const Dashboard: React.FC = () => {
             <span className="text-xs text-gray-300">Crypto</span>
           </button>
           
-          <button className="flex flex-col items-center space-y-2 p-2 sm:p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-all duration-300 hover:scale-105 active:scale-95">
+          <button 
+            onClick={() => setActiveTab('transactions')}
+            className="flex flex-col items-center space-y-2 p-2 sm:p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-all duration-300 hover:scale-105 active:scale-95"
+          >
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-              <span className="text-lg sm:text-2xl">📊</span>
+              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
             </div>
             <span className="text-xs text-gray-300">Analytics</span>
           </button>
@@ -223,10 +273,16 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div className="card-glow rounded-2xl p-8 text-center">
                   <div className="w-16 h-16 bg-gray-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl">💳</span>
+                    <Wallet className="w-8 h-8 text-gray-400" />
                   </div>
                   <p className="text-gray-400 mb-2">No funds in your wallets</p>
                   <p className="text-gray-500 text-sm">Add money to get started</p>
+                  <Button 
+                    onClick={handleReceive}
+                    className="mt-4 glow-button"
+                  >
+                    Add Funds
+                  </Button>
                 </div>
               )}
             </div>
@@ -285,7 +341,7 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div className="card-glow rounded-2xl p-8 text-center">
                   <div className="w-16 h-16 bg-gray-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl">📝</span>
+                    <BarChart3 className="w-8 h-8 text-gray-400" />
                   </div>
                   <p className="text-gray-400 mb-2">No transactions yet</p>
                   <p className="text-gray-500 text-sm">Your activity will appear here</p>
@@ -313,7 +369,7 @@ const Dashboard: React.FC = () => {
               activeTab === 'home' ? 'text-blue-400 scale-105' : 'text-gray-400'
             }`}
           >
-            <span className="text-lg sm:text-xl">🏠</span>
+            <Home className="w-5 h-5" />
             <span className="text-xs">Home</span>
           </button>
           
@@ -323,7 +379,7 @@ const Dashboard: React.FC = () => {
               activeTab === 'transactions' ? 'text-blue-400 scale-105' : 'text-gray-400'
             }`}
           >
-            <span className="text-lg sm:text-xl">📊</span>
+            <BarChart3 className="w-5 h-5" />
             <span className="text-xs">Activity</span>
           </button>
           
@@ -332,7 +388,7 @@ const Dashboard: React.FC = () => {
             className="flex flex-col items-center space-y-1 text-blue-400 transition-all duration-200 hover:scale-110 active:scale-95"
           >
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-400 to-purple-600 rounded-2xl flex items-center justify-center glow-button">
-              <span className="text-lg sm:text-xl text-white">↗</span>
+              <ArrowUpRight className="w-5 h-5 text-white" />
             </div>
           </button>
           
@@ -342,7 +398,7 @@ const Dashboard: React.FC = () => {
               activeTab === 'wallet' ? 'text-blue-400 scale-105' : 'text-gray-400'
             }`}
           >
-            <span className="text-lg sm:text-xl">💳</span>
+            <Wallet className="w-5 h-5" />
             <span className="text-xs">Wallet</span>
           </button>
           
@@ -352,7 +408,7 @@ const Dashboard: React.FC = () => {
               activeTab === 'settings' ? 'text-blue-400 scale-105' : 'text-gray-400'
             }`}
           >
-            <span className="text-lg sm:text-xl">⚙️</span>
+            <Settings className="w-5 h-5" />
             <span className="text-xs">Settings</span>
           </button>
         </div>

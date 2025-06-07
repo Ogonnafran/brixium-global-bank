@@ -11,7 +11,6 @@ import { AdminAuthProvider } from "./contexts/AdminAuthContext";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import AdminPanel from "./pages/AdminPanel";
-import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./components/Dashboard";
 import AdminRoute from "./components/admin/AdminRoute";
@@ -32,12 +31,11 @@ const App = () => (
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<AuthPage />} />
                   <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/admin" element={<AdminPanel />} />
                   <Route 
-                    path="/admin/dashboard" 
+                    path="/admin" 
                     element={
                       <AdminRoute>
-                        <AdminDashboard />
+                        <AdminPanel />
                       </AdminRoute>
                     } 
                   />
