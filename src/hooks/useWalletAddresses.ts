@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,9 @@ export const useWalletAddresses = () => {
   const [transferRequests, setTransferRequests] = useState<TransferRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Use refs to track subscriptions
+  const subscriptionsRef = useRef<any[]>([]);
 
   const fetchWalletAddresses = async () => {
     if (!user) return;
@@ -158,19 +161,23 @@ export const useWalletAddresses = () => {
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      setIsLoading(true);
-      Promise.all([
-        fetchWalletAddresses(),
-        fetchTransferRequests()
-      ]).finally(() => {
-        setIsLoading(false);
-      });
+  const setupSubscriptions = () => {
+    if (!user) return;
 
-      // Set up real-time subscriptions
-      const walletAddressesSubscription = supabase
-        .channel('wallet_addresses_changes')
+    // Clean up existing subscriptions first
+    subscriptionsRef.current.forEach(subscription => {
+      try {
+        supabase.removeChannel(subscription);
+      } catch (err) {
+        console.warn('Error removing channel:', err);
+      }
+    });
+    subscriptionsRef.current = [];
+
+    try {
+      // Create new subscriptions with unique channel names
+      const walletAddressesChannel = supabase
+        .channel(`wallet_addresses_changes_${user.id}_${Date.now()}`)
         .on(
           'postgres_changes',
           {
@@ -185,8 +192,8 @@ export const useWalletAddresses = () => {
         )
         .subscribe();
 
-      const transferRequestsSubscription = supabase
-        .channel('transfer_requests_changes')
+      const transferRequestsChannel = supabase
+        .channel(`transfer_requests_changes_${user.id}_${Date.now()}`)
         .on(
           'postgres_changes',
           {
@@ -200,14 +207,53 @@ export const useWalletAddresses = () => {
         )
         .subscribe();
 
-      return () => {
-        walletAddressesSubscription.unsubscribe();
-        transferRequestsSubscription.unsubscribe();
-      };
+      // Store references for cleanup
+      subscriptionsRef.current = [walletAddressesChannel, transferRequestsChannel];
+    } catch (err) {
+      console.error('Error setting up subscriptions:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      setIsLoading(true);
+      Promise.all([
+        fetchWalletAddresses(),
+        fetchTransferRequests()
+      ]).finally(() => {
+        setIsLoading(false);
+      });
+
+      // Set up subscriptions after initial data load
+      setTimeout(() => {
+        setupSubscriptions();
+      }, 100);
     } else {
       setWalletAddresses([]);
       setTransferRequests([]);
+      
+      // Clean up subscriptions when user logs out
+      subscriptionsRef.current.forEach(subscription => {
+        try {
+          supabase.removeChannel(subscription);
+        } catch (err) {
+          console.warn('Error removing channel:', err);
+        }
+      });
+      subscriptionsRef.current = [];
     }
+
+    // Cleanup function
+    return () => {
+      subscriptionsRef.current.forEach(subscription => {
+        try {
+          supabase.removeChannel(subscription);
+        } catch (err) {
+          console.warn('Error removing channel:', err);
+        }
+      });
+      subscriptionsRef.current = [];
+    };
   }, [user]);
 
   return {

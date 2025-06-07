@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Database } from '@/integrations/supabase/types';
@@ -37,6 +37,9 @@ export const useUserData = () => {
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Use refs to track subscriptions
+  const subscriptionsRef = useRef<any[]>([]);
 
   const fetchUserProfile = async () => {
     if (!user) return;
@@ -162,22 +165,23 @@ export const useUserData = () => {
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      setIsLoading(true);
-      setError(null);
-      
-      Promise.all([
-        fetchUserProfile(),
-        fetchWallets(),
-        fetchTransactions()
-      ]).finally(() => {
-        setIsLoading(false);
-      });
+  const setupSubscriptions = () => {
+    if (!user) return;
 
-      // Set up real-time subscriptions for live data updates
-      const profileSubscription = supabase
-        .channel('profile_changes')
+    // Clean up existing subscriptions first
+    subscriptionsRef.current.forEach(subscription => {
+      try {
+        supabase.removeChannel(subscription);
+      } catch (err) {
+        console.warn('Error removing channel:', err);
+      }
+    });
+    subscriptionsRef.current = [];
+
+    try {
+      // Create new subscriptions with unique channel names
+      const profileChannel = supabase
+        .channel(`profile_changes_${user.id}_${Date.now()}`)
         .on(
           'postgres_changes',
           {
@@ -192,8 +196,8 @@ export const useUserData = () => {
         )
         .subscribe();
 
-      const walletsSubscription = supabase
-        .channel('wallets_changes')
+      const walletsChannel = supabase
+        .channel(`wallets_changes_${user.id}_${Date.now()}`)
         .on(
           'postgres_changes',
           {
@@ -208,8 +212,8 @@ export const useUserData = () => {
         )
         .subscribe();
 
-      const transactionsSubscription = supabase
-        .channel('transactions_changes')
+      const transactionsChannel = supabase
+        .channel(`transactions_changes_${user.id}_${Date.now()}`)
         .on(
           'postgres_changes',
           {
@@ -224,17 +228,58 @@ export const useUserData = () => {
         )
         .subscribe();
 
-      return () => {
-        profileSubscription.unsubscribe();
-        walletsSubscription.unsubscribe();
-        transactionsSubscription.unsubscribe();
-      };
+      // Store references for cleanup
+      subscriptionsRef.current = [profileChannel, walletsChannel, transactionsChannel];
+    } catch (err) {
+      console.error('Error setting up subscriptions:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      setIsLoading(true);
+      setError(null);
+      
+      Promise.all([
+        fetchUserProfile(),
+        fetchWallets(),
+        fetchTransactions()
+      ]).finally(() => {
+        setIsLoading(false);
+      });
+
+      // Set up subscriptions after initial data load
+      setTimeout(() => {
+        setupSubscriptions();
+      }, 100);
     } else {
       setProfile(null);
       setWallets([]);
       setTransactions([]);
       setError(null);
+      
+      // Clean up subscriptions when user logs out
+      subscriptionsRef.current.forEach(subscription => {
+        try {
+          supabase.removeChannel(subscription);
+        } catch (err) {
+          console.warn('Error removing channel:', err);
+        }
+      });
+      subscriptionsRef.current = [];
     }
+
+    // Cleanup function
+    return () => {
+      subscriptionsRef.current.forEach(subscription => {
+        try {
+          supabase.removeChannel(subscription);
+        } catch (err) {
+          console.warn('Error removing channel:', err);
+        }
+      });
+      subscriptionsRef.current = [];
+    };
   }, [user]);
 
   return {
