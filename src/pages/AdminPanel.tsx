@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ import UserManagement from '../components/admin/UserManagement';
 import PlatformSettings from '../components/admin/PlatformSettings';
 import IntegrationsPanel from '../components/admin/IntegrationsPanel';
 import NetworkFeeManager from '../components/admin/NetworkFeeManager';
+import UserTransactionMonitor from '../components/admin/UserTransactionMonitor';
 
 const AdminPanelContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -23,6 +25,7 @@ const AdminPanelContent: React.FC = () => {
   const adminTabs = [
     { id: 'overview', label: 'Dashboard', icon: '📊', color: 'bg-blue-500' },
     { id: 'fees', label: 'Network Fees', icon: '💰', color: 'bg-green-500' },
+    { id: 'monitor', label: 'Transaction Monitor', icon: '📈', color: 'bg-blue-500' },
     { id: 'kyc', label: 'KYC Management', icon: '📋', color: 'bg-green-500' },
     { id: 'transactions', label: 'Transaction Approvals', icon: '💸', color: 'bg-purple-500' },
     { id: 'wallets', label: 'Wallet Monitoring', icon: '👁️', color: 'bg-orange-500' },
@@ -39,6 +42,8 @@ const AdminPanelContent: React.FC = () => {
         return <AdminOverview />;
       case 'fees':
         return <NetworkFeeManager />;
+      case 'monitor':
+        return <UserTransactionMonitor />;
       case 'kyc':
         return <KYCManagement />;
       case 'transactions':

@@ -39,6 +39,81 @@ export type Database = {
         }
         Relationships: []
       }
+      external_transfers: {
+        Row: {
+          account_number: string
+          amount: number
+          bank_name: string
+          country: string
+          created_at: string | null
+          currency: string
+          fees: number | null
+          id: string
+          recipient_name: string
+          routing_code: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_number: string
+          amount: number
+          bank_name: string
+          country: string
+          created_at?: string | null
+          currency: string
+          fees?: number | null
+          id?: string
+          recipient_name: string
+          routing_code?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_number?: string
+          amount?: number
+          bank_name?: string
+          country?: string
+          created_at?: string | null
+          currency?: string
+          fees?: number | null
+          id?: string
+          recipient_name?: string
+          routing_code?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      international_banks: {
+        Row: {
+          bank_name: string
+          country: string
+          created_at: string | null
+          id: string
+          routing_format: string | null
+          swift_code: string | null
+        }
+        Insert: {
+          bank_name: string
+          country: string
+          created_at?: string | null
+          id?: string
+          routing_format?: string | null
+          swift_code?: string | null
+        }
+        Update: {
+          bank_name?: string
+          country?: string
+          created_at?: string | null
+          id?: string
+          routing_format?: string | null
+          swift_code?: string | null
+        }
+        Relationships: []
+      }
       kyc_submissions: {
         Row: {
           created_at: string | null
@@ -340,6 +415,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          balance_visible: boolean | null
+          biometric_enabled: boolean | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          transaction_alerts: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          balance_visible?: boolean | null
+          biometric_enabled?: boolean | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          transaction_alerts?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          balance_visible?: boolean | null
+          biometric_enabled?: boolean | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          transaction_alerts?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -429,6 +543,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_manage_funds: {
+        Args: {
+          p_admin_user_id: string
+          p_target_user_id: string
+          p_currency: string
+          p_amount: number
+          p_operation: string
+        }
+        Returns: Json
+      }
+      admin_update_kyc_status: {
+        Args: {
+          p_admin_user_id: string
+          p_target_user_id: string
+          p_new_status: Database["public"]["Enums"]["kyc_status"]
+          p_admin_notes?: string
+        }
+        Returns: Json
+      }
+      confirm_admin_user: {
+        Args: { admin_email: string }
+        Returns: Json
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
