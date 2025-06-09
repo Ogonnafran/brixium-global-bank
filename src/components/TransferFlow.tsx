@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserData } from '@/hooks/useUserData';
 import { useWalletAddresses } from '@/hooks/useWalletAddresses';
+import { usePlatformSettings } from '@/hooks/usePlatformSettings';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, User, Wallet } from 'lucide-react';
+import { ArrowLeft, User, Wallet, Copy, AlertCircle } from 'lucide-react';
 
 interface TransferFlowProps {
   onBack: () => void;
@@ -21,21 +22,35 @@ const TransferFlow: React.FC<TransferFlowProps> = ({ onBack }) => {
   const [recipientUid, setRecipientUid] = useState('');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [selectedCrypto, setSelectedCrypto] = useState<'BTC' | 'ETH' | 'USDT'>('BTC');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { user } = useAuth();
   const { wallets, profile } = useUserData();
   const { createTransferRequest } = useWalletAddresses();
+  const { settings: platformSettings, isLoading: settingsLoading } = usePlatformSettings();
   const { toast } = useToast();
 
   // Get USD wallet balance
   const usdWallet = wallets.find(w => w.currency === 'USD');
   const availableBalance = usdWallet?.balance || 0;
 
+  // Get network fee and wallet address from admin settings
+  const networkFee = platformSettings?.network_fee || 25;
+  const adminWalletAddress = platformSettings?.crypto_addresses?.[selectedCrypto] || '';
+
   const handleNext = () => {
     if (step < 3) {
       setStep(step + 1);
     }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: 'Copied!',
+      description: 'Address copied to clipboard',
+    });
   };
 
   const validateAndProceed = () => {
@@ -71,6 +86,35 @@ const TransferFlow: React.FC<TransferFlowProps> = ({ onBack }) => {
         toast({
           title: 'Invalid Recipient',
           description: 'You cannot send money to yourself',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      handleNext();
+    } else if (transferType === 'crypto') {
+      if (!amount || parseFloat(amount) <= 0) {
+        toast({
+          title: 'Invalid Amount',
+          description: 'Please enter a valid amount',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (parseFloat(amount) > availableBalance) {
+        toast({
+          title: 'Insufficient Balance',
+          description: `You only have $${availableBalance.toFixed(2)} available`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!adminWalletAddress) {
+        toast({
+          title: 'Service Unavailable',
+          description: `${selectedCrypto} withdrawals are temporarily unavailable. Please contact support.`,
           variant: 'destructive',
         });
         return;
@@ -174,17 +218,20 @@ const TransferFlow: React.FC<TransferFlowProps> = ({ onBack }) => {
               </button>
 
               <button
-                onClick={() => toast({ title: 'Coming Soon', description: 'External crypto transfers will be available soon!' })}
-                className="w-full card-glow rounded-2xl p-6 text-left opacity-50 cursor-not-allowed"
+                onClick={() => {
+                  setTransferType('crypto');
+                  handleNext();
+                }}
+                className="w-full card-glow rounded-2xl p-6 text-left hover:bg-white/10 transition-colors"
               >
                 <div className="flex items-center space-x-4">
                   <div className="w-14 h-14 bg-orange-500/20 rounded-xl flex items-center justify-center">
                     <Wallet className="w-7 h-7 text-orange-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-white">Send to External Crypto Wallet</h3>
-                    <p className="text-gray-400">Send to external crypto address</p>
-                    <p className="text-yellow-400 text-sm font-medium">Coming Soon</p>
+                    <h3 className="text-lg font-semibold text-white">Crypto Withdrawal</h3>
+                    <p className="text-gray-400">Withdraw to external crypto wallet</p>
+                    <p className="text-yellow-400 text-sm font-medium">Network fee: ${networkFee}</p>
                   </div>
                 </div>
               </button>
@@ -255,6 +302,75 @@ const TransferFlow: React.FC<TransferFlowProps> = ({ onBack }) => {
           </div>
         )}
 
+        {step === 2 && transferType === 'crypto' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white mb-6">Crypto Withdrawal</h2>
+            
+            <Card className="bg-white/10 border-white/20">
+              <CardContent className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="crypto" className="text-white font-medium">
+                    Select Cryptocurrency
+                  </Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(['BTC', 'ETH', 'USDT'] as const).map((crypto) => (
+                      <button
+                        key={crypto}
+                        onClick={() => setSelectedCrypto(crypto)}
+                        className={`p-3 rounded-xl border transition-colors ${
+                          selectedCrypto === crypto
+                            ? 'bg-blue-500/20 border-blue-400 text-blue-400'
+                            : 'bg-white/5 border-white/20 text-white hover:bg-white/10'
+                        }`}
+                      >
+                        {crypto}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="amount" className="text-white font-medium">Amount (USD)</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="h-12 bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-xl"
+                    placeholder="0.00"
+                    max={availableBalance}
+                  />
+                  <p className="text-gray-400 text-sm">
+                    Maximum: ${availableBalance.toFixed(2)}
+                  </p>
+                </div>
+
+                {/* Network Fee Display */}
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <AlertCircle className="w-5 h-5 text-yellow-400" />
+                    <p className="text-yellow-400 font-medium">Network Fee Required</p>
+                  </div>
+                  <p className="text-white text-lg font-semibold">
+                    Network Fee: ${networkFee} USD
+                  </p>
+                  <p className="text-gray-300 text-sm mt-1">
+                    This fee is set by the administrator and must be paid to process your withdrawal.
+                  </p>
+                </div>
+
+                <Button
+                  onClick={validateAndProceed}
+                  disabled={!amount || settingsLoading}
+                  className="w-full glow-button text-white font-semibold py-4 rounded-xl text-lg"
+                >
+                  {settingsLoading ? 'Loading...' : 'Continue'}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {step === 3 && transferType === 'internal' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white mb-6">Review Transfer</h2>
@@ -312,6 +428,90 @@ const TransferFlow: React.FC<TransferFlowProps> = ({ onBack }) => {
               className="w-full glow-button text-white font-semibold py-4 rounded-xl text-lg"
             >
               {isSubmitting ? 'Processing...' : 'Send Money'}
+            </Button>
+          </div>
+        )}
+
+        {step === 3 && transferType === 'crypto' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white mb-6">Payment Instructions</h2>
+            
+            <Card className="bg-white/10 border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Withdrawal Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Withdrawal Amount</span>
+                  <span className="text-white font-bold">${amount} USD</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Network Fee</span>
+                  <span className="text-yellow-400 font-bold">${networkFee} USD</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Cryptocurrency</span>
+                  <span className="text-white">{selectedCrypto}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Payment Instructions */}
+            <Card className="bg-red-500/10 border-red-500/20">
+              <CardHeader>
+                <CardTitle className="text-red-400 flex items-center space-x-2">
+                  <AlertCircle className="w-5 h-5" />
+                  <span>Important: Pay Network Fee First</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-white font-medium">
+                    1. Send exactly ${networkFee} USD to this {selectedCrypto} address:
+                  </p>
+                  <div className="bg-white/10 rounded-lg p-3 flex items-center justify-between">
+                    <span className="text-white font-mono text-sm break-all">
+                      {adminWalletAddress || 'Address not configured'}
+                    </span>
+                    {adminWalletAddress && (
+                      <Button
+                        onClick={() => copyToClipboard(adminWalletAddress)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-400 hover:bg-white/10"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-yellow-500/10 rounded-lg p-3">
+                  <p className="text-yellow-400 text-sm">
+                    <strong>Important:</strong> You must pay the network fee before your withdrawal can be processed. 
+                    After payment, contact support with your transaction hash for verification.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-white font-medium">2. Save this transaction for your records:</p>
+                  <div className="text-sm text-gray-300">
+                    <p>• Withdrawal Amount: ${amount} USD</p>
+                    <p>• Network Fee: ${networkFee} USD</p>
+                    <p>• Cryptocurrency: {selectedCrypto}</p>
+                    <p>• Date: {new Date().toLocaleString()}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Button
+              onClick={onBack}
+              className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-4 rounded-xl text-lg"
+            >
+              Back to Dashboard
             </Button>
           </div>
         )}

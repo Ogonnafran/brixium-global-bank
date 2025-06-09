@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -145,8 +144,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Continue even if this fails
       }
       
+      const sanitizedEmail = email.trim().toLowerCase();
+      console.log('Attempting user sign in for:', sanitizedEmail);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
+        email: sanitizedEmail,
         password,
       });
       
@@ -172,15 +174,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.user && data.session) {
         console.log('Sign in successful:', data.user.email);
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully signed in.",
-        });
         
-        // Force page reload for clean state
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 100);
+        // Check if user is admin (redirect to admin panel if so)
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .eq('role', 'admin')
+          .single();
+
+        if (roleData) {
+          toast({
+            title: "Welcome back, Admin!",
+            description: "Redirecting to admin panel...",
+          });
+          setTimeout(() => {
+            window.location.href = '/admin';
+          }, 100);
+        } else {
+          toast({
+            title: "Welcome back!",
+            description: "You have successfully signed in.",
+          });
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 100);
+        }
         
         return { error: null };
       }

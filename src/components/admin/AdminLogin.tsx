@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Lock } from 'lucide-react';
+import { Shield, Lock, User, AlertCircle } from 'lucide-react';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 
 const AdminLogin: React.FC = () => {
@@ -11,11 +11,22 @@ const AdminLogin: React.FC = () => {
     email: '', 
     password: '' 
   });
+  const [showPassword, setShowPassword] = useState(false);
   const { adminSignIn, isAdminLoading } = useAdminAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await adminSignIn(credentials.email, credentials.password);
+    console.log('Admin login form submitted');
+    
+    if (!credentials.email || !credentials.password) {
+      return;
+    }
+    
+    const result = await adminSignIn(credentials.email, credentials.password);
+    
+    if (!result.error) {
+      console.log('Admin login successful, component should redirect');
+    }
   };
 
   return (
@@ -44,19 +55,21 @@ const AdminLogin: React.FC = () => {
                     onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
                     required
                     className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 pl-10"
+                    disabled={isAdminLoading}
                   />
                   <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                    <span className="text-gray-400">👤</span>
+                    <User className="w-4 h-4 text-gray-400" />
                   </div>
                 </div>
                 <div className="relative">
                   <Input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Admin Password"
                     value={credentials.password}
                     onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                     required
                     className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 pl-10"
+                    disabled={isAdminLoading}
                   />
                   <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
                     <Lock className="w-4 h-4 text-gray-400" />
@@ -67,15 +80,17 @@ const AdminLogin: React.FC = () => {
               <Button
                 type="submit"
                 className="w-full bg-gradient-to-r from-red-500 to-purple-600 hover:from-red-600 hover:to-purple-700 text-white font-semibold py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                disabled={isAdminLoading}
+                disabled={isAdminLoading || !credentials.email || !credentials.password}
               >
                 {isAdminLoading ? 'Authenticating...' : 'Access Admin Panel'}
               </Button>
             </form>
             
-            <div className="mt-6 p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
+
+            
+            <div className="mt-4 p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
               <p className="text-yellow-300 text-sm text-center">
-                ⚠️ Restricted Access - Admin credentials required
+                🔐 Restricted Access - Admin credentials required
               </p>
             </div>
           </CardContent>

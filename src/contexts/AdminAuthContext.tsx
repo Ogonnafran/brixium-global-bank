@@ -21,15 +21,68 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [hasInitialized, setHasInitialized] = useState(false);
   const { toast } = useToast();
 
+  // Helper function to ensure admin user exists and is properly configured
+  const ensureAdminUserSetup = async (userId: string, email: string) => {
+    try {
+      // First, ensure the user profile exists
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (profileError && profileError.code === 'PGRST116') {
+        // Profile doesn't exist, create it
+        await supabase.from('profiles').insert({
+          id: userId,
+          name: 'Admin User',
+          user_uid: 'BRX' + userId.substring(0, 8).toUpperCase(),
+        });
+      }
+
+      // Ensure admin role exists
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .upsert({
+          user_id: userId,
+          role: 'admin'
+        }, {
+          onConflict: 'user_id,role'
+        });
+
+      if (roleError) {
+        console.error('Error ensuring admin role:', roleError);
+      }
+
+      // Confirm admin user function call
+      const { data: confirmResult } = await supabase.rpc('confirm_admin_user', {
+        admin_email: email
+      });
+
+      console.log('Admin user setup result:', confirmResult);
+      return true;
+    } catch (error) {
+      console.error('Error setting up admin user:', error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
 
     const checkAdminAuth = async () => {
       try {
-        // Check if user is authenticated and has admin role
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user && mounted) {
+          console.log('Found user session:', session.user.email);
+          
+          // For the default admin email, automatically ensure setup
+          if (session.user.email === 'brixiumglobalbank@gmail.com') {
+            console.log('Setting up admin user...');
+            await ensureAdminUserSetup(session.user.id, session.user.email);
+          }
+
           // Check if user has admin role
           const { data: roleData, error } = await supabase
             .from('user_roles')
@@ -43,7 +96,7 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             setIsAuthorizedAdmin(true);
             console.log('Admin session restored:', session.user.email);
           } else if (mounted) {
-            // User is logged in but not an admin
+            console.log('User authenticated but not admin:', session.user.email);
             setAdminUser(null);
             setIsAuthorizedAdmin(false);
           }
@@ -76,7 +129,6 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       setIsAdminLoading(true);
       
-      // Validate inputs
       if (!email || !password) {
         const error = new Error('Email and password are required');
         toast({
@@ -87,8 +139,15 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return { error };
       }
 
-      // Sanitize email
       const sanitizedEmail = email.trim().toLowerCase();
+      console.log('Attempting admin sign in for:', sanitizedEmail);
+
+      // Clean up any existing sessions first
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.log('No existing session to sign out');
+      }
 
       // Sign in with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -98,15 +157,31 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       
       if (error) {
         console.error('Admin sign in error:', error);
+        let errorMessage = "Invalid admin credentials.";
+        
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = "Invalid email or password.";
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = "Please confirm your email before signing in.";
+        }
+        
         toast({
           title: "Access Denied",
-          description: "Invalid admin credentials.",
+          description: errorMessage,
           variant: "destructive",
         });
         return { error };
       }
 
       if (data.user) {
+        console.log('User authenticated:', data.user.email);
+        
+        // For the default admin email, ensure setup
+        if (data.user.email === 'brixiumglobalbank@gmail.com') {
+          console.log('Setting up admin user after sign in...');
+          await ensureAdminUserSetup(data.user.id, data.user.email);
+        }
+
         // Check if user has admin role
         const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
@@ -115,36 +190,67 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           .eq('role', 'admin')
           .single();
 
-        if (roleError || !roleData) {
-          // User doesn't have admin role
-          await supabase.auth.signOut();
-          toast({
-            title: "Access Denied",
-            description: "You do not have admin privileges.",
-            variant: "destructive",
-          });
-          return { error: new Error('Insufficient privileges') };
+        if (roleError && roleError.code !== 'PGRST116') {
+          console.error('Error checking admin role:', roleError);
+        }
+
+        if (!roleData) {
+          console.log('User does not have admin role, attempting to assign...');
+          
+          // Try to assign admin role if this is the default admin email
+          if (data.user.email === 'brixiumglobalbank@gmail.com') {
+            const { error: insertError } = await supabase
+              .from('user_roles')
+              .insert({
+                user_id: data.user.id,
+                role: 'admin'
+              });
+
+            if (insertError) {
+              console.error('Error assigning admin role:', insertError);
+              await supabase.auth.signOut();
+              toast({
+                title: "Access Denied",
+                description: "Unable to assign admin privileges.",
+                variant: "destructive",
+              });
+              return { error: new Error('Unable to assign admin privileges') };
+            }
+          } else {
+            // Not the default admin email and no admin role
+            await supabase.auth.signOut();
+            toast({
+              title: "Access Denied",
+              description: "You do not have admin privileges.",
+              variant: "destructive",
+            });
+            return { error: new Error('Insufficient privileges') };
+          }
         }
 
         // Log admin access
-        await supabase.from('activity_logs').insert({
-          user_id: data.user.id,
-          action: 'admin_login',
-          details: { 
-            timestamp: new Date().toISOString(),
+        try {
+          await supabase.from('activity_logs').insert({
+            user_id: data.user.id,
+            action: 'admin_login',
+            details: { 
+              timestamp: new Date().toISOString(),
+              ip_address: '0.0.0.0',
+              success: true
+            },
             ip_address: '0.0.0.0',
-            success: true
-          },
-          ip_address: '0.0.0.0',
-          user_agent: navigator.userAgent
-        });
+            user_agent: navigator.userAgent
+          });
+        } catch (logError) {
+          console.error('Error logging admin access:', logError);
+        }
 
         setAdminUser(data.user);
         setIsAuthorizedAdmin(true);
 
         toast({
-          title: "Admin Access Granted",
-          description: "Welcome to the Brixium admin panel.",
+          title: "Welcome back!",
+          description: "Successfully signed in to admin panel.",
         });
 
         console.log('Admin successfully authenticated:', data.user.email);
@@ -169,7 +275,6 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const adminSignOut = async () => {
     try {
       if (adminUser) {
-        // Log admin logout
         await supabase.from('activity_logs').insert({
           user_id: adminUser.id,
           action: 'admin_logout',
@@ -194,7 +299,6 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       
       console.log('Admin signed out successfully');
       
-      // Redirect to admin login
       setTimeout(() => {
         window.location.href = '/admin';
       }, 100);
